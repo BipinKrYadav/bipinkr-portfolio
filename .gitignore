@@ -16,6 +16,13 @@ next-env.d.ts
 *.pem
 Thumbs.db
 
+# local tooling
+#
+# Claude Code's per-machine configuration (dev-server launch config and
+# similar). Useful locally, but it describes one developer's environment
+# rather than the project, so it stays out of version control.
+.claude/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
