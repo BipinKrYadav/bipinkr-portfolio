@@ -1,0 +1,45 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env
+#
+# `.env.production` is intentionally NOT ignored. It holds only public,
+# non-secret values (the GTM container ID) that are compiled into the HTML
+# anyway, and committing it is what makes a production build reproducible
+# on any machine. Never add a secret to it.
+.env
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# ---------------------------------------------------------------
+# Raw evidence: campaign exports must NEVER be committed publicly.
+# They contain account IDs, campaign IDs and lead-level data.
+# ---------------------------------------------------------------
+/private/
+/raw-data/
+*.xlsx
+*.xls
+*.csv

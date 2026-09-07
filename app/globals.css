@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --header-height: 4.25rem;
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    /* Keep anchored sections clear of the sticky header. */
+    scroll-padding-top: calc(var(--header-height) + 1.5rem);
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Numerals in data contexts line up column-to-column. */
+  .tabular,
+  table,
+  .metric-numeral {
+    font-variant-numeric: tabular-nums;
+  }
+
+  h1, h2, h3, h4 {
+    @apply text-ink;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* A single, consistent, always-visible focus ring. */
+  :focus-visible {
+    outline: 2px solid theme('colors.accent.DEFAULT');
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  .on-night :focus-visible,
+  .bg-night :focus-visible {
+    outline-color: #7FC6BC;
+  }
+
+  ::selection {
+    background: theme('colors.accent.soft');
+    color: theme('colors.accent.ink');
+  }
+
+  hr {
+    @apply border-line;
+  }
+}
+
+@layer components {
+  /* Editorial small-caps label used for eyebrows and section kickers. */
+  .eyebrow-label {
+    @apply text-eyebrow font-semibold uppercase text-accent;
+  }
+
+  /* Long-form case-study body copy. */
+  .prose-editorial {
+    @apply text-[1.0625rem] leading-[1.72] text-ink-soft;
+  }
+
+  .prose-editorial p + p {
+    @apply mt-5;
+  }
+
+  .prose-editorial strong {
+    @apply font-semibold text-ink;
+  }
+
+  .prose-editorial a {
+    @apply text-accent underline decoration-accent-line underline-offset-4 hover:decoration-accent;
+  }
+
+  /* Horizontally scrollable wrapper for data tables on small screens. */
+  .table-scroll {
+    @apply -mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0;
+    scrollbar-width: thin;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Subtle hairline grid used behind a few data blocks. */
+  .bg-grid-faint {
+    background-image:
+      linear-gradient(to right, rgba(21, 22, 26, 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(21, 22, 26, 0.035) 1px, transparent 1px);
+    background-size: 2.25rem 2.25rem;
+  }
+}
+
+/*
+ * Motion is an enhancement only. Everything below must remain fully usable
+ * — and fully visible — when the user asks for reduced motion.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
