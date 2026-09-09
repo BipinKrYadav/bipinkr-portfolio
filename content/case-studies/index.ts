@@ -30,6 +30,60 @@ export function getNextCaseStudy(slug: string): CaseStudySummary {
   return caseStudies[(index + 1) % caseStudies.length];
 }
 
+/**
+ * Related links shown at the foot of each case study.
+ *
+ * Two rules govern this map:
+ *
+ * 1. A case study links to a service only where it genuinely evidences that
+ *    service. Nothing links to Landing Pages, because no case study documents
+ *    landing page results.
+ * 2. `caseStudy` never repeats whatever `getNextCaseStudy()` already returns,
+ *    so the reader is never offered the same destination twice.
+ */
+export interface CaseStudyRelated {
+  services: { href: string; label: string }[];
+  caseStudy?: { slug: string; label: string; reason: string };
+}
+
+export const caseStudyRelated: Record<string, CaseStudyRelated> = {
+  'meta-lead-generation': {
+    services: [{ href: '/services/#meta-ads', label: 'Meta Ads & Lead Generation' }],
+    caseStudy: {
+      slug: 'cross-channel-meta-google',
+      label: 'Cross-Channel Meta + Google Ads',
+      reason: 'The same real estate market, measured across two platforms.',
+    },
+  },
+  'measurement-audit': {
+    services: [{ href: '/services/#tracking-measurement', label: 'Tracking & Measurement' }],
+    caseStudy: {
+      slug: 'meta-lead-generation',
+      label: 'Scaling Meta Lead Generation in Patna',
+      reason: 'The Meta lead campaigns whose spend this audit examined.',
+    },
+  },
+  'preschool-google-ads': {
+    services: [{ href: '/services/#google-ads', label: 'Google Ads & Search Acquisition' }],
+    caseStudy: {
+      slug: 'measurement-audit',
+      label: 'Auditing My Own Ad Accounts',
+      reason: 'The wider audit these three preschool accounts sit inside.',
+    },
+  },
+  'cross-channel-meta-google': {
+    services: [
+      { href: '/services/#meta-ads', label: 'Meta Ads & Lead Generation' },
+      { href: '/services/#google-ads', label: 'Google Ads & Search Acquisition' },
+    ],
+    caseStudy: {
+      slug: 'measurement-audit',
+      label: 'Auditing My Own Ad Accounts',
+      reason: 'Where the unreliable Google conversion reporting is documented.',
+    },
+  },
+};
+
 export const caseStudyIndexContent = {
   eyebrow: 'Case Studies',
   heading: 'Selected Campaign Evidence',

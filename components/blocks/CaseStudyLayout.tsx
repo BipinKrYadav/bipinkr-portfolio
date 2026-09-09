@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 
 import { TableOfContents } from '@/components/blocks/TableOfContents';
 import { Container } from '@/components/ui/Container';
-import { getNextCaseStudy } from '@/content/case-studies';
+import { caseStudyRelated, getNextCaseStudy } from '@/content/case-studies';
 import type { CaseStudySection } from '@/content/types';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +24,7 @@ interface CaseStudyLayoutProps {
  */
 export function CaseStudyLayout({ sections, children, slug }: CaseStudyLayoutProps) {
   const next = getNextCaseStudy(slug);
+  const related = caseStudyRelated[slug];
 
   return (
     <>
@@ -45,6 +46,58 @@ export function CaseStudyLayout({ sections, children, slug }: CaseStudyLayoutPro
           </div>
         </Container>
       </div>
+
+      {/*
+        Related work — the service this case study evidences, plus the one
+        other case study that genuinely bears on it. Rendered above "Next
+        case study" and never duplicating it.
+      */}
+      {related ? (
+        <div className="border-t border-line py-section-sm">
+          <Container>
+            <p className="text-micro font-semibold uppercase tracking-[0.11em] text-ink-faint">
+              Related
+            </p>
+
+            <div className="mt-6 grid grid-cols-1 gap-x-12 gap-y-6 sm:grid-cols-2">
+              <div>
+                <h2 className="text-sm font-semibold text-ink">
+                  {related.services.length > 1 ? 'Services this evidences' : 'Service this evidences'}
+                </h2>
+                <ul className="mt-3">
+                  {related.services.map((service) => (
+                    <li key={service.href}>
+                      <Link
+                        href={service.href}
+                        className="inline-flex min-h-[2.75rem] items-center gap-1.5 text-[0.9375rem] text-accent underline-offset-4 hover:underline"
+                      >
+                        {service.label}
+                        <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {related.caseStudy ? (
+                <div>
+                  <h2 className="text-sm font-semibold text-ink">Related case study</h2>
+                  <Link
+                    href={`/case-studies/${related.caseStudy.slug}`}
+                    className="mt-3 inline-flex min-h-[2.75rem] items-center gap-1.5 text-[0.9375rem] text-accent underline-offset-4 hover:underline"
+                  >
+                    {related.caseStudy.label}
+                    <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
+                  </Link>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+                    {related.caseStudy.reason}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </Container>
+        </div>
+      ) : null}
 
       {/* Next case study */}
       <div className="border-t border-line bg-paper-sunk py-section-sm">

@@ -1,7 +1,9 @@
+import { ArrowRight } from 'lucide-react';
 import type { Metadata } from 'next';
 
 import { CaseStudyCard } from '@/components/blocks/CaseStudyCard';
 import { CTASection } from '@/components/blocks/CTASection';
+import { Button } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
 import { EvidenceLabel } from '@/components/ui/EvidenceLabel';
 import { Section } from '@/components/ui/Section';
@@ -44,6 +46,15 @@ export default function CaseStudiesPage() {
                 <p key={paragraph}>{paragraph}</p>
               ))}
             </div>
+
+            <Button
+              href="/services"
+              variant="ghost"
+              className="mt-4"
+              trailingIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}
+            >
+              See the services behind this work
+            </Button>
           </div>
         </Container>
       </section>

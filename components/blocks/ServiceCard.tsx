@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import type { ServiceContent } from '@/content/types';
 import { cn } from '@/lib/utils';
 
@@ -94,6 +96,22 @@ export function ServiceCard({
               ))}
             </ul>
           </div>
+
+          {/*
+            Proof link. Rendered only where a case study actually documents
+            this service — Landing Pages has none and therefore shows none.
+          */}
+          {service.evidence ? (
+            <p className="mt-4 text-[0.9375rem] leading-relaxed text-ink-soft">
+              Documented evidence:{' '}
+              <Link
+                href={`/case-studies/${service.evidence.slug}`}
+                className="text-accent underline decoration-accent-line underline-offset-4 hover:decoration-accent"
+              >
+                {service.evidence.label}
+              </Link>
+            </p>
+          ) : null}
 
           {service.principle ? (
             <p className="mt-4 border-l-2 border-accent-line bg-accent-soft/50 px-4 py-3.5 text-[0.9375rem] leading-relaxed text-ink-soft">

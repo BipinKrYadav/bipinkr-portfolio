@@ -30,6 +30,10 @@ export const services: ServiceContent[] = [
       'Retargeting',
     ],
     bestFor: ['Real estate', 'Local businesses', 'Education', 'Lead-generation businesses'],
+    evidence: {
+      slug: 'meta-lead-generation',
+      label: 'Scaling Meta lead generation in Patna',
+    },
     icon: BarChart3,
   },
   {
@@ -52,6 +56,10 @@ export const services: ServiceContent[] = [
     ],
     principle:
       'Before optimising Google Ads, check whether the conversion data deserves to be optimised.',
+    evidence: {
+      slug: 'preschool-google-ads',
+      label: 'Diagnosing preschool Google Ads across three accounts',
+    },
     icon: Search,
   },
   {
@@ -90,6 +98,10 @@ export const services: ServiceContent[] = [
       'Offline conversion strategy',
       'Cross-channel measurement',
     ],
+    evidence: {
+      slug: 'measurement-audit',
+      label: 'Auditing five ad accounts before optimising them',
+    },
     icon: Gauge,
   },
 ];

@@ -102,14 +102,22 @@ export default function AboutPage() {
                 <p key={paragraph}>{paragraph}</p>
               ))}
             </div>
-            <Button
-              href="/case-studies"
-              variant="ghost"
-              className="mt-6"
-              trailingIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}
-            >
-              Read the case studies
-            </Button>
+            <div className="mt-6 flex flex-wrap items-center gap-x-8">
+              <Button
+                href="/case-studies"
+                variant="ghost"
+                trailingIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}
+              >
+                Read the case studies
+              </Button>
+              <Button
+                href="/services"
+                variant="ghost"
+                trailingIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}
+              >
+                See what I work on
+              </Button>
+            </div>
           </div>
         </div>
       </Section>

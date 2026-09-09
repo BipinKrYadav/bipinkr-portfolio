@@ -104,6 +104,16 @@ export interface ServiceContent {
   bestFor?: string[];
   /** Optional operating principle or honest boundary. */
   principle?: string;
+  /**
+   * The case study that evidences this service, if one exists.
+   *
+   * Deliberately optional: a service with no documented case study must not
+   * borrow one. Landing pages has none, so it links to none.
+   */
+  evidence?: {
+    slug: string;
+    label: string;
+  };
   icon: LucideIcon;
 }
 
