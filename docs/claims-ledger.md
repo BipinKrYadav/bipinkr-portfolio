@@ -77,7 +77,7 @@ The left column is banned; the right column is what the site actually says.
 |---|---|
 | Meta Ads & Lead Generation | May describe execution and analysis. No outcome promise. |
 | Google Ads & Search | May state the principle "check whether the conversion data deserves to be optimised". No performance promise. |
-| Landing Pages & Websites | **No conversion-rate improvement may be claimed.** Current evidence does not establish landing page results. Stated on the page itself. |
+| Landing Pages & Websites | **No conversion-rate improvement may be claimed.** Enforced by omission: no landing-page results are claimed and no landing-page case study is linked, because current evidence does not establish landing-page performance results. The page describes the work only. |
 | Tracking & Measurement | May describe the work. No accuracy guarantee. |
 
 The Free Ad Audit is described as "an initial assessment, not a guarantee of

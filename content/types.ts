@@ -117,6 +117,42 @@ export interface ServiceContent {
   icon: LucideIcon;
 }
 
+/**
+ * The five content themes the blog covers.
+ *
+ * A theme is a label shown on cards and articles — deliberately NOT a route.
+ * With a small number of articles, per-theme index pages would be thin and
+ * would compete with the services and case study pages that already own
+ * those terms. Revisit only when a theme has enough articles to justify one.
+ */
+export type BlogTheme =
+  | 'Meta Ads'
+  | 'Google Ads'
+  | 'Tracking & Measurement'
+  | 'Real Estate Marketing'
+  | 'Lead Generation';
+
+export interface BlogArticleSummary {
+  slug: string;
+  /** Full editorial title, used as the article H1. */
+  title: string;
+  /** Compact title for cards and "next article" links. */
+  cardTitle: string;
+  /** Meta description. */
+  description: string;
+  /** Card excerpt. */
+  excerpt: string;
+  theme: BlogTheme;
+  /**
+   * ISO dates. Set only for articles that have genuinely been written —
+   * never back-dated, never invented to imply a publishing history.
+   */
+  datePublished: string;
+  dateModified: string;
+  /** Honest estimate from the drafted word count. */
+  readingMinutes: number;
+}
+
 export interface ProcessStep {
   number: string;
   title: string;

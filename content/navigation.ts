@@ -8,6 +8,7 @@ export const primaryNav: NavLink[] = [
   { href: '/', label: 'Home' },
   { href: '/case-studies', label: 'Case Studies' },
   { href: '/services', label: 'Services' },
+  { href: '/blog', label: 'Insights' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
 ];
@@ -19,6 +20,8 @@ export const mobileNav: NavLink[] = [...primaryNav, { href: '/resume', label: 'R
 export const footerNav: NavLink[] = [
   { href: '/case-studies', label: 'Case Studies' },
   { href: '/services', label: 'Services' },
+  { href: '/free-ad-audit', label: 'Free Ad Audit' },
+  { href: '/blog', label: 'Insights' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
   { href: '/resume', label: 'Resume' },

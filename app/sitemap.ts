@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 
+import { articles } from '@/content/blog';
 import { caseStudySlugs } from '@/content/case-studies';
 import { absoluteUrl } from '@/content/site-config';
 
@@ -17,6 +18,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/', priority: 1, changeFrequency: 'monthly' },
     { path: '/case-studies', priority: 0.9, changeFrequency: 'monthly' },
     { path: '/services', priority: 0.8, changeFrequency: 'monthly' },
+    { path: '/free-ad-audit', priority: 0.9, changeFrequency: 'monthly' },
+    { path: '/blog', priority: 0.8, changeFrequency: 'monthly' },
     { path: '/about', priority: 0.7, changeFrequency: 'monthly' },
     { path: '/contact', priority: 0.8, changeFrequency: 'yearly' },
     { path: '/resume', priority: 0.5, changeFrequency: 'monthly' },
@@ -33,6 +36,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.85,
   }));
 
+  /**
+   * Articles carry their own dateModified rather than the build timestamp,
+   * so an unchanged article does not claim to have been updated on every
+   * deploy.
+   */
+  const articleRoutes = articles.map((article) => ({
+    url: absoluteUrl(`/blog/${article.slug}/`),
+    lastModified: new Date(`${article.dateModified}T00:00:00Z`),
+    changeFrequency: 'monthly' as const,
+    priority: 0.7,
+  }));
+
   return [
     ...staticRoutes.map((route) => ({
       url: absoluteUrl(route.path === '/' ? '/' : `${route.path}/`),
@@ -41,5 +56,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: route.priority,
     })),
     ...caseStudyRoutes,
+    ...articleRoutes,
   ];
 }

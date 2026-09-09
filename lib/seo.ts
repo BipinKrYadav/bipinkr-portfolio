@@ -118,6 +118,46 @@ export function websiteSchema() {
   };
 }
 
+/**
+ * Article structured data for blog posts.
+ *
+ * `datePublished` / `dateModified` are passed in from the article's own
+ * content file and are only ever set for articles that genuinely exist —
+ * never back-dated to imply a longer publishing history.
+ */
+export function articleSchema(params: {
+  headline: string;
+  description: string;
+  path: string;
+  datePublished: string;
+  dateModified: string;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: params.headline,
+    description: params.description,
+    datePublished: params.datePublished,
+    dateModified: params.dateModified,
+    inLanguage: 'en-IN',
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': absoluteUrl(params.path),
+    },
+    author: {
+      '@type': 'Person',
+      name: siteConfig.name,
+      url: siteConfig.url,
+      jobTitle: siteConfig.role,
+    },
+    publisher: {
+      '@type': 'Person',
+      name: siteConfig.name,
+      url: siteConfig.url,
+    },
+  };
+}
+
 /** BreadcrumbList structured data for nested pages. */
 export function breadcrumbSchema(items: { name: string; path: string }[]) {
   return {

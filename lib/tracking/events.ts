@@ -51,6 +51,12 @@ export type CtaLocation =
   /** Any of the four case study pages */
   | 'case_study'
   | 'case_studies_index'
+  /** The blog hub and individual articles */
+  | 'blog'
+  | 'blog_article'
+  /** The dedicated Free Ad Audit page */
+  | 'free_ad_audit'
+  | 'free_ad_audit_final'
   | 'services'
   | 'about'
   | 'contact'

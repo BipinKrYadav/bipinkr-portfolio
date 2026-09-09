@@ -67,8 +67,13 @@ export const services: ServiceContent[] = [
     title: 'Landing Pages & Marketing Websites',
     summary:
       'Conversion-focused landing pages and marketing websites designed around campaign intent, mobile experience, clear CTAs, forms and basic measurement.',
+    /**
+     * Deliberately avoids message match, mobile, forms, CTAs and tracking —
+     * the callout below covers those. This describes the funnel role instead,
+     * so the two do not restate each other.
+     */
     description:
-      'Campaign landing pages and marketing websites built around what the ad promised — matched message, mobile-first layout, a form that is actually easy to complete on a phone, and tracking wired in from the start.',
+      'The step between a paid click and an enquiry — and the one most often treated as somebody else’s job. Campaign landing pages and marketing websites, built as part of the acquisition work rather than handed off separately.',
     includes: [
       'Campaign landing pages',
       'Marketing websites',
@@ -78,8 +83,14 @@ export const services: ServiceContent[] = [
       'Campaign-message alignment',
       'Basic tracking',
     ],
+    /**
+     * Describes the work, not a result. The claims ledger rule still stands:
+     * no conversion-rate improvement may be claimed for landing pages, and
+     * this service still links to no case study because none documents
+     * landing page results.
+     */
     principle:
-      'No conversion-rate improvement is claimed for this work. The current evidence does not establish landing page conversion results, so none are advertised.',
+      'I build landing pages that match the ad, work well on mobile, and make it easy for people to take the next step — with clear CTAs, simple forms and tracking.',
     icon: LayoutTemplate,
   },
   {
