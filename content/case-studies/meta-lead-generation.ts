@@ -181,14 +181,25 @@ export interface ScaleItem {
   label: string;
 }
 
+/**
+ * A subset of the documented scope, not all of it. The exports also record
+ * 13 age ranges and 4 lead-related result types (see docs/evidence-register.md);
+ * both are omitted here because they add breadth without telling the reader
+ * anything they can act on. Removing evidence is always safe — it can only
+ * under-claim.
+ */
 export const operationalScale: ScaleItem[] = [
   { value: '48', label: 'campaigns' },
   { value: '51', label: 'ad sets' },
   { value: '83', label: 'ads / creatives' },
-  { value: '13', label: 'age ranges' },
   { value: '6', label: 'Bihar cities' },
-  { value: '4', label: 'lead-related result types' },
-  { value: '2', label: 'lead optimisation goals' },
+  /**
+   * Campaign objectives (awareness, engagement, leads) — the campaign level
+   * of Meta's taxonomy. Not the same as the 2 lead optimisation goals recorded
+   * at ad set level, which the evidence register still documents separately.
+   * Only lead-objective spend feeds the ₹40.77 blended CPL.
+   */
+  { value: '3', label: 'campaign objectives' },
 ];
 
 export const scaleNote =

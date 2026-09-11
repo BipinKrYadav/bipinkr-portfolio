@@ -125,7 +125,18 @@ flattering figure exists by excluding that spend; it is deliberately not used.
 ### Operational scale
 
 48 campaigns · 51 ad sets · 83 ads/creatives · 13 age ranges · 6 Bihar cities
-· 4 lead-related result types · 2 lead optimisation goals.
+· 4 lead-related result types · 2 lead optimisation goals
+· 3 campaign objectives (awareness, engagement, leads).
+
+Two distinct levels of Meta's taxonomy, both recorded: **campaign objectives**
+sit at campaign level, **optimisation goals** at ad set level within the leads
+objective. Only lead-objective spend feeds the `₹40.77` blended CPL — awareness
+and engagement spend is excluded from it.
+
+The case study page displays the 3 campaign objectives; age ranges, result
+types and optimisation goals are documented here but omitted from the page.
+The `3 campaign objectives` figure is confirmed by the account owner rather
+than read from the XLSX exports.
 
 `83` is a count of ads, **not** "83 bilingual creatives" — the exports record
 that Hindi and English variants existed but carry no per-creative language

@@ -160,7 +160,7 @@ export default function PreschoolGoogleAdsPage() {
                   </h3>
                   <MetricGrid
                     metrics={account.diagnostics}
-                    columns={3}
+                    columns={2}
                     size="sm"
                     className="mt-4"
                   />

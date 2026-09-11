@@ -120,10 +120,14 @@ export const accounts: AccountBlock[] = [
         conversions: '4',
       },
     ],
+    /**
+     * The exports also record 0 conversion actions actively recording. That
+     * figure is omitted here but still documented in the evidence register,
+     * and still shown on the measurement audit case study.
+     */
     diagnostics: [
       { value: '2', label: 'conversion actions unverified', evidence: 'documented' },
       { value: '9', label: 'with no recent conversions', evidence: 'documented' },
-      { value: '0', label: 'actively recording', evidence: 'documented' },
     ],
     note: 'The two campaigns above are the ones relevant to this diagnosis; together they do not account for the full ₹10,979.48 of account spend.',
     caution:
