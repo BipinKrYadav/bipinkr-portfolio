@@ -113,30 +113,20 @@ export default function MetaLeadGenerationPage() {
 
             <p className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-[0.9375rem] leading-relaxed text-ink-soft">
               <EvidenceLabel kind="unverified" size="xs" />
-              <span>
-                The ₹50.22 figure is Meta’s cost per quality-optimised result, not a verified
-                human-qualified lead cost.
-              </span>
+              <span>{cs.resultTypesChipNote}</span>
             </p>
           </CaseStudySection>
 
           {/* Campaign evidence */}
-          <CaseStudySection id="campaigns" heading="Five campaigns that carried the volume">
-            <p className="prose-editorial mb-8">
-              Five campaigns account for 1,170 of the recorded leads. The spread between the
-              cheapest and the most expensive is close to 1.8×, which is the more useful number: it
-              says the difference sits in the campaign, not in the platform.
-            </p>
+          <CaseStudySection id="campaigns" heading={cs.campaignsHeading}>
+            <p className="prose-editorial mb-8">{cs.campaignsIntro}</p>
 
             <DataTable {...cs.campaignsTable} />
           </CaseStudySection>
 
           {/* Variants */}
           <CaseStudySection id="variants" heading="Variant observations">
-            <p className="prose-editorial mb-8">
-              Three campaigns ran alongside a variant. The exports record what each one spent and
-              produced; they do not record why the variant was created.
-            </p>
+            <p className="prose-editorial mb-8">{cs.variantsIntro}</p>
 
             <div className="space-y-4">
               {cs.variantObservations.map((observation) => (

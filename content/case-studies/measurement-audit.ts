@@ -1,3 +1,5 @@
+import { fmt, metric, metricRow } from '@/lib/metrics';
+
 import type {
   CaseStudySection,
   CaseStudySummary,
@@ -5,22 +7,30 @@ import type {
   Metric,
 } from '../types';
 
+/*
+ * Every evidence-backed figure below is rendered from the canonical metric
+ * registry (content/evidence/metrics). No figure is typed here; wording that
+ * restates a figure in words is listed in content/evidence/linked-phrases.ts.
+ */
+
+const placeholderValue = fmt('audit.placeholder_conversion_value');
+
 export const summary: CaseStudySummary = {
   slug: 'measurement-audit',
   title: 'I Audited My Own Ad Accounts Before Optimising Them',
   cardTitle: 'Auditing My Own Ad Accounts',
-  subtitle: '35% of the spend was reporting numbers I could not trust.',
+  subtitle: `${fmt('audit.unreliable_share', 'percent_0dp')} of the spend was reporting numbers I could not trust.`,
   cardDescription:
-    'A review of five ad accounts across Meta and Google, carried out before treating any performance number as a basis for optimisation.',
+    `A review of ${fmt('site.accounts', 'words')} ad accounts across Meta and Google, carried out before treating any performance number as a basis for optimisation.`,
   metaDescription:
-    'A measurement audit of five Meta and Google ad accounts: inflated conversion reporting, placeholder values, unverified conversion actions and incomplete tracking, with the limitations stated.',
+    `A measurement audit of ${fmt('site.accounts', 'words')} Meta and Google ad accounts: inflated conversion reporting, placeholder values, unverified conversion actions and incomplete tracking, with the limitations stated.`,
   industry: 'Multi-account',
   platform: 'Meta + Google Ads',
   order: 2,
   cardMetrics: [
-    { value: '₹1.11L', label: 'documented spend reviewed', evidence: 'documented' },
-    { value: '₹38.9K', label: 'tied to unreliable measurement', evidence: 'calculated' },
-    { value: '34.9%', label: 'of documented spend', evidence: 'calculated' },
+    metric('site.spend_total', 'documented spend reviewed'),
+    metric('audit.unreliable_spend', 'tied to unreliable measurement', { format: 'inr_thousands_1dp' }),
+    metric('audit.unreliable_share', 'of documented spend'),
   ],
   cta: {
     heading: 'Not sure whether your conversion data is trustworthy?',
@@ -39,18 +49,16 @@ export const sections: CaseStudySection[] = [
 ];
 
 export const heroMetrics: Metric[] = [
-  { value: '₹1.11L', label: 'documented spend', evidence: 'documented' },
-  { value: '5', label: 'accounts', evidence: 'documented' },
-  {
-    value: '₹38.9K',
-    label: 'associated with unreliable, unverified or inflated measurement',
-    evidence: 'calculated',
-  },
-  { value: '34.9%', label: 'of documented spend', evidence: 'calculated' },
+  metric('site.spend_total', 'documented spend'),
+  metric('site.accounts', 'accounts'),
+  metric('audit.unreliable_spend', 'associated with unreliable, unverified or inflated measurement', {
+    format: 'inr_thousands_1dp',
+  }),
+  metric('audit.unreliable_share', 'of documented spend'),
 ];
 
 export const situation = [
-  'Five ad accounts across Meta and Google were reviewed before treating performance numbers as optimisation truth.',
+  `${fmt('site.accounts', 'words_capitalised')} ad accounts across Meta and Google were reviewed before treating performance numbers as optimisation truth.`,
   'The order matters. Optimising against a conversion column you have not checked is not optimisation — it is guessing with extra steps. So before any budget decision, the question was narrower and duller: do these numbers describe something real, and do they describe the same thing consistently?',
   'For roughly a third of the documented spend, the answer was no.',
 ];
@@ -95,9 +103,13 @@ export const auditChecks: { title: string; description: string }[] = [
 
 /** The funnel visual: documented spend narrowing to the affected share. */
 export const scaleFlow = [
-  { label: 'Documented spend reviewed', value: '₹1,11,000+', tone: 'neutral' as const },
-  { label: 'Spend where measurement did not hold up', value: '₹38,898.65', tone: 'flag' as const },
-  { label: 'Share of documented spend', value: '34.9%', tone: 'flag' as const },
+  {
+    label: 'Documented spend reviewed',
+    value: fmt('site.spend_total', 'inr_whole', { lowerBoundMarker: true }),
+    tone: 'neutral' as const,
+  },
+  { label: 'Spend where measurement did not hold up', value: fmt('audit.unreliable_spend'), tone: 'flag' as const },
+  { label: 'Share of documented spend', value: fmt('audit.unreliable_share'), tone: 'flag' as const },
 ];
 
 export interface FailureMode {
@@ -116,12 +128,12 @@ export const failureModes: FailureMode[] = [
     title: 'Inflated conversion reporting',
     summary: 'Reported conversion rates that cannot be reconciled with recorded click volume.',
     body: [
-      'One Google account reported campaign-level conversion rates far above 100%, alongside an account-level figure of 256%.',
+      `One Google account reported campaign-level conversion rates far above 100%, alongside an account-level figure of ${fmt('audit.acct_inflated.conv_rate')}.`,
       'A conversion rate above 100% is not automatically an error — duplicate counting, multi-conversion actions and attribution settings can all produce one legitimately. What it is, always, is a signal to stop and check before the number is used to justify a budget change.',
     ],
     metrics: [
-      { value: '₹10,638.93', label: 'spend in the affected account', evidence: 'documented' },
-      { value: '256%', label: 'account-level reported conversion rate', evidence: 'reported' },
+      metric('audit.acct_inflated.spend', 'spend in the affected account'),
+      metric('audit.acct_inflated.conv_rate', 'account-level reported conversion rate'),
     ],
     table: {
       caption: 'Campaign-level reported conversion rates in the affected account',
@@ -129,13 +141,11 @@ export const failureModes: FailureMode[] = [
         { key: 'campaign', header: 'Campaign' },
         { key: 'rate', header: 'Reported conversion rate', numeric: true },
       ],
-      rows: [
-        { campaign: 'Campaign 1', rate: '345%' },
-        { campaign: 'Campaign 2', rate: '476%' },
-        { campaign: 'Campaign 3', rate: '160%' },
-        { campaign: 'Campaign 4', rate: '133%' },
-      ],
-      footRow: { campaign: 'Account level', rate: '256%' },
+      rows: [1, 2, 3, 4].map((n) => ({
+        campaign: `Campaign ${n}`,
+        rate: fmt(`audit.acct_inflated.campaign_${n}.conv_rate`),
+      })),
+      footRow: { campaign: 'Account level', rate: fmt('audit.acct_inflated.conv_rate') },
       note: 'Campaigns are numbered rather than named here because the point is the pattern across the account, not any individual campaign.',
     },
     caution:
@@ -144,12 +154,14 @@ export const failureModes: FailureMode[] = [
   {
     number: '02',
     title: 'Placeholder values',
-    summary: 'Conversion values recorded as ₹1 rather than a real business value.',
+    summary: `Conversion values recorded as ${placeholderValue} rather than a real business value.`,
     body: [
-      'Three campaigns contained ₹1 conversion values.',
-      'A ₹1 value is a placeholder, not a price. Any downstream figure built on it — conversion value, value per conversion, ROAS — inherits the placeholder and reports it as though it were revenue.',
+      `${fmt('audit.placeholder_value_campaigns', 'words_capitalised')} campaigns contained ${placeholderValue} conversion values.`,
+      `A ${placeholderValue} value is a placeholder, not a price. Any downstream figure built on it — conversion value, value per conversion, ROAS — inherits the placeholder and reports it as though it were revenue.`,
     ],
-    metrics: [{ value: '3', label: 'campaigns with ₹1 conversion values', evidence: 'documented' }],
+    metrics: [
+      metric('audit.placeholder_value_campaigns', `campaigns with ${placeholderValue} conversion values`),
+    ],
     caution:
       'Value-based reporting was therefore not meaningful for those campaigns, and no value-based metric from them appears anywhere on this site.',
   },
@@ -162,10 +174,10 @@ export const failureModes: FailureMode[] = [
       'The Performance Max campaign in the same account is the clearest illustration: substantial click volume at a low cost per click, a lead-funnel figure reported in one place, and nothing at all in the conversions column.',
     ],
     metrics: [
-      { value: '₹10,979.48', label: 'spend in the affected account', evidence: 'documented' },
-      { value: '2', label: 'conversion actions unverified', evidence: 'documented' },
-      { value: '9', label: 'with no recent conversions', evidence: 'documented' },
-      { value: '0', label: 'actively recording', evidence: 'documented' },
+      metric('pre.account_a.spend', 'spend in the affected account'),
+      metric('pre.account_a.conversion_actions.unverified', 'conversion actions unverified'),
+      metric('pre.account_a.conversion_actions.no_recent_conversions', 'with no recent conversions'),
+      metric('pre.account_a.conversion_actions.actively_recording', 'actively recording'),
     ],
     caution:
       'A campaign recording 0 conversions in the platform’s conversion column is a statement about measurement, not about whether the campaign produced enquiries. This review does not establish that it produced none.',
@@ -179,16 +191,15 @@ export const failureModes: FailureMode[] = [
       'This is the least dramatic failure mode and the most common one. Nothing looks broken on the surface; the account simply cannot answer the question it is being asked.',
     ],
     metrics: [
-      { value: '₹17,280.24', label: 'combined spend', evidence: 'documented' },
-      { value: '3', label: 'sources: two preschool accounts and Meta website lead campaigns', evidence: 'documented' },
+      metric('audit.incomplete_tracking.spend', 'combined spend'),
+      metric('audit.incomplete_tracking.sources', 'sources: two preschool accounts and Meta website lead campaigns'),
     ],
     caution:
       'This describes the state of the recorded tracking. It does not establish that these campaigns generated no enquiries, and it does not identify the technical cause.',
   },
 ];
 
-export const failureModesNote =
-  'The three spend figures above — ₹10,638.93, ₹10,979.48 and ₹17,280.24 — sum to the ₹38,898.65 quoted at the top of this page.';
+export const failureModesNote = `The three spend figures above — ${fmt('audit.acct_inflated.spend')}, ${fmt('pre.account_a.spend')} and ${fmt('audit.incomplete_tracking.spend')} — sum to the ${fmt('audit.unreliable_spend')} quoted at the top of this page.`;
 
 export interface CampaignTypeCard {
   name: string;
@@ -199,19 +210,19 @@ export const campaignTypes: CampaignTypeCard[] = [
   {
     name: 'Performance Max',
     rows: [
-      { term: 'Spend', value: '₹8,637.27', evidence: 'documented' },
-      { term: 'Clicks', value: '8,537', evidence: 'documented' },
-      { term: 'CPC', value: '₹1.01', evidence: 'calculated' },
-      { term: 'Recorded conversions', value: '0', evidence: 'verified' },
+      metricRow('Spend', 'pre.account_a.pmax.spend'),
+      metricRow('Clicks', 'pre.account_a.pmax.clicks'),
+      metricRow('CPC', 'pre.account_a.pmax.cpc'),
+      metricRow('Recorded conversions', 'pre.account_a.pmax.recorded_conversions'),
     ],
   },
   {
     name: 'Search',
     rows: [
-      { term: 'Spend', value: '₹928.39', evidence: 'documented' },
-      { term: 'Clicks', value: '7', evidence: 'documented' },
-      { term: 'CPC', value: '₹132.63', evidence: 'calculated' },
-      { term: 'Recorded conversions', value: '4', evidence: 'verified' },
+      metricRow('Spend', 'pre.account_a.search.spend'),
+      metricRow('Clicks', 'pre.account_a.search.clicks'),
+      metricRow('CPC', 'pre.account_a.search.cpc'),
+      metricRow('Recorded conversions', 'pre.account_a.search.recorded_conversions'),
     ],
   },
 ];

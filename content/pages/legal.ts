@@ -1,3 +1,5 @@
+import { fmt } from '@/lib/metrics';
+
 import { siteConfig } from '../site-config';
 
 /**
@@ -127,7 +129,7 @@ export const resumeContent = {
       },
       {
         title: 'Documented evidence',
-        body: '₹1.11L+ of documented ad spend across 5 ad accounts, with 15 months of campaign evidence.',
+        body: `${fmt('site.spend_total', 'inr_lakh', { lowerBoundMarker: true })} of documented ad spend across ${fmt('site.accounts')} ad accounts, with ${fmt('site.evidence_months')} of campaign evidence.`,
       },
       {
         title: 'Analysis and measurement',

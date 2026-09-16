@@ -17,15 +17,19 @@ docs/evidence-register.md      what each figure is, and how it is known
 docs/claims-ledger.md          what may be said about it publicly
         │
         ▼
-content/case-studies/*.ts      typed, structured content — the editing surface
+content/evidence/metrics/*.ts  canonical metric records — the only place a figure is stored
+        │
+        ▼
+content/case-studies/*.ts      structured content that renders figures by metric id
         │
         ▼
 app/case-studies/<slug>/page.tsx   composition only, no hard-coded numbers
 ```
 
-**No number is typed directly into a page component.** Every figure on a case
-study page is imported from its `content/case-studies/*.ts` module. To correct
-a figure, change it in one place.
+**No evidence-backed number is typed into a content module or a page
+component.** Every figure is rendered from the canonical metric registry, so a
+figure shared by several pages is stored once. To correct a figure, change its
+record — see `docs/metric-registry.md`.
 
 ---
 
@@ -63,14 +67,15 @@ description and the per-case-study CTA.
 
 ```ts
 {
-  value: '₹32.29',            // already formatted for display
+  value: '₹32.29',            // formatted for display by the metric registry
   label: '2026 cohort CPL',
   note?: 'optional qualifier',
   evidence: 'calculated',     // drives the visible evidence chip
 }
 ```
 
-`evidence` is required in practice for anything numeric. Grades are defined in
+Build it with `metric('re.cohort_2026.cpl', '2026 cohort CPL')`, which takes
+both the value and the evidence grade from the registry. Grades are defined in
 `content/types.ts`; see `docs/evidence-register.md` §1.
 
 ---
@@ -106,15 +111,17 @@ Chosen per case study to suit the evidence, from `components/data/`:
 
 1. Add the figures to `docs/evidence-register.md`.
 2. Add any new claim wording to `docs/claims-ledger.md`.
-3. Create `content/case-studies/<slug>.ts` exporting at least the five
-   required exports above.
-4. Import it in `content/case-studies/index.ts` and give it an `order`.
-5. Create `app/case-studies/<slug>/page.tsx`, composing components and
+3. Add each figure as a canonical metric in `content/evidence/metrics/`
+   (`docs/metric-registry.md`).
+4. Create `content/case-studies/<slug>.ts` exporting at least the five
+   required exports above, rendering every figure with `fmt()` / `metric()`.
+5. Import it in `content/case-studies/index.ts` and give it an `order`.
+6. Create `app/case-studies/<slug>/page.tsx`, composing components and
    importing every figure from the content module.
-6. Add `export const metadata = buildMetadata({...})` with a canonical path.
+7. Add `export const metadata = buildMetadata({...})` with a canonical path.
 
 The sitemap, the homepage grid, the case study index, breadcrumbs and the
-"next case study" link all pick it up automatically from step 4.
+"next case study" link all pick it up automatically from step 5.
 
 ---
 

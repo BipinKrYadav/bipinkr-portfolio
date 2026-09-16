@@ -73,7 +73,7 @@ export default function CrossChannelPage() {
           </CaseStudySection>
 
           {/* Meta */}
-          <CaseStudySection id="meta" heading="Meta — two campaigns, 191 verified leads">
+          <CaseStudySection id="meta" heading={cs.metaHeading}>
             <DataTable {...cs.metaTable} />
 
             <div className="prose-editorial mt-8">
@@ -84,7 +84,7 @@ export default function CrossChannelPage() {
           </CaseStudySection>
 
           {/* Google */}
-          <CaseStudySection id="google" heading="Google — three Search campaigns, 773 clicks">
+          <CaseStudySection id="google" heading={cs.googleHeading}>
             <DataTable {...cs.googleTable} />
 
             <MetricGrid metrics={cs.googleMetrics} columns={3} size="sm" className="mt-8" />

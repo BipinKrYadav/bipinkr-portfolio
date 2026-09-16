@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og';
 
 import { siteConfig } from '@/content/site-config';
+import { fmt } from '@/lib/metrics';
 
 // Required by `output: 'export'` — the card is rendered once at build time.
 export const dynamic = 'force-static';
@@ -82,8 +83,8 @@ export default function OpengraphImage() {
               than choosing metrics that do not need one.
             */}
             {[
-              { value: '1,617', label: 'Meta form submissions' },
-              { value: '15 months', label: 'campaign evidence' },
+              { value: fmt('re.form_submissions'), label: 'Meta form submissions' },
+              { value: fmt('site.evidence_months'), label: 'campaign evidence' },
             ].map((metric) => (
               <div key={metric.label} style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ fontSize: 40, color: '#15161A', fontWeight: 600 }}>

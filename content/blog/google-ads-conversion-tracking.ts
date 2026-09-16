@@ -1,20 +1,26 @@
+import { fmt, metric, metricRow } from '@/lib/metrics';
+
 import type { BlogArticleSummary, CaseStudySection, DataTableContent } from '../types';
 
 /**
  * Every figure on this page comes from the preschool Google Ads and
- * measurement audit case studies. Terminology is deliberately identical to
+ * measurement audit case studies, rendered from the same canonical metrics
+ * (content/evidence/metrics). Terminology is deliberately identical to
  * those pages: "recorded conversion", "reported lead-funnel leads",
  * "verified conversion". Nothing here asserts a business outcome, a
  * technical cause, or a winner between campaign types.
  */
+
+const accounts3 = fmt('pre.accounts', 'words');
+
 export const summary: BlogArticleSummary = {
   slug: 'google-ads-conversion-tracking',
   title: 'Why Google Ads Conversion Numbers Don’t Always Tell the Full Story',
   cardTitle: 'Why Google Ads conversion numbers don’t always tell the full story',
   description:
-    'A conversion number can look precise while the measurement behind it is incomplete. What I check in a Google Ads account before trusting the conversion column — with figures from three real preschool accounts.',
+    `A conversion number can look precise while the measurement behind it is incomplete. What I check in a Google Ads account before trusting the conversion column — with figures from ${accounts3} real preschool accounts.`,
   excerpt:
-    'Across three preschool Google Ads accounts, ₹20,187.56 of documented spend produced 12 recorded conversions — and one campaign reported 171 lead-funnel leads while its conversion column showed zero. Here is what I check before treating any conversion number as a basis for optimisation.',
+    `Across ${accounts3} preschool Google Ads accounts, ${fmt('pre.total.spend')} of documented spend produced ${fmt('pre.total.recorded_conversions')} recorded conversions — and one campaign reported ${fmt('pre.account_a.pmax.reported_funnel_leads')} lead-funnel leads while its conversion column showed ${fmt('pre.account_a.pmax.recorded_conversions', 'words')}. Here is what I check before treating any conversion number as a basis for optimisation.`,
   theme: 'Tracking & Measurement',
   datePublished: '2026-09-09',
   dateModified: '2026-09-09',
@@ -37,18 +43,25 @@ export const sections: CaseStudySection[] = [
 export const intro = [
   'A Google Ads account will give you a conversion number to two decimal places. It will not tell you whether that number describes anything real.',
   'That gap is not a rare edge case. It is the single most common problem I find when I open an account for the first time, and it matters more than any bid adjustment — because every optimisation decision you make afterwards inherits it.',
-  'What follows is what I actually check, illustrated with figures from three preschool Google Ads accounts I reviewed. The numbers are all documented in the campaign exports. What they show is a measurement problem; what they emphatically do not show is which campaign produced real business outcomes.',
+  `What follows is what I actually check, illustrated with figures from ${accounts3} preschool Google Ads accounts I reviewed. The numbers are all documented in the campaign exports. What they show is a measurement problem; what they emphatically do not show is which campaign produced real business outcomes.`,
 ];
 
 export const problem = [
-  'Across the three accounts, the exports record ₹20,187.56 of documented spend and 12 recorded conversions. Split by account: 4 in the first, 1 in the second, 7 in the third.',
-  'Twelve conversions on twenty thousand rupees is a figure you could act on. You could pause the accounts with fewer, shift budget to the account with seven, and write a confident sentence about cost per conversion.',
+  `Across the ${accounts3} accounts, the exports record ${fmt('pre.total.spend')} of documented spend and ${fmt('pre.total.recorded_conversions')} recorded conversions. Split by account: ${fmt('pre.account_a.recorded_conversions')} in the first, ${fmt('pre.account_b.recorded_conversions')} in the second, ${fmt('pre.account_c.recorded_conversions')} in the third.`,
+  `${fmt('pre.total.recorded_conversions', 'words_capitalised')} conversions on twenty thousand rupees is a figure you could act on. You could pause the accounts with fewer, shift budget to the account with ${fmt('pre.account_c.recorded_conversions', 'words')}, and write a confident sentence about cost per conversion.`,
   'You would be wrong to — because before any of that arithmetic means anything, the conversion column has to be recording reliably. In these accounts it was not.',
 ];
 
 export const spendMetrics = [
-  { value: '₹20,187.56', label: 'documented spend across three accounts', evidence: 'documented' as const },
-  { value: '12', label: 'recorded conversions in total', evidence: 'verified' as const },
+  metric('pre.total.spend', `documented spend across ${accounts3} accounts`),
+  metric('pre.total.recorded_conversions', 'recorded conversions in total'),
+  /**
+   * Deliberately not rendered from the registry. The article scopes this to
+   * "the reviewed setup" (three accounts), while the recorded diagnostic
+   * (pre.account_a.conversion_actions.actively_recording) belongs to account A.
+   * Kept exactly as published until the scope is confirmed — see
+   * content/evidence/linked-phrases.ts.
+   */
   { value: '0', label: 'conversion actions actively recording in the reviewed setup', evidence: 'documented' as const },
 ];
 
@@ -87,8 +100,7 @@ export const checks: { title: string; body: string }[] = [
   },
 ];
 
-export const checksNote =
-  'These are the same eight checks I ran across five of my own ad accounts before treating any of their numbers as optimisation truth.';
+export const checksNote = `These are the same eight checks I ran across ${fmt('site.accounts', 'words')} of my own ad accounts before treating any of their numbers as optimisation truth.`;
 
 export const comparisonIntro =
   'Two campaign types in the same preschool account, shown side by side because they were measured on completely different terms — not because one of them won.';
@@ -97,31 +109,33 @@ export const comparisonPanels = [
   {
     title: 'Performance Max',
     rows: [
-      { term: 'Spend', value: '₹8,637.27', evidence: 'documented' as const },
-      { term: 'Clicks', value: '8,537', evidence: 'documented' as const },
-      { term: 'CPC', value: '₹1.01', evidence: 'calculated' as const },
-      { term: 'Reported lead-funnel leads', value: '171', evidence: 'reported' as const },
-      { term: 'Recorded conversions', value: '0', evidence: 'verified' as const },
+      metricRow('Spend', 'pre.account_a.pmax.spend'),
+      metricRow('Clicks', 'pre.account_a.pmax.clicks'),
+      metricRow('CPC', 'pre.account_a.pmax.cpc'),
+      metricRow('Reported lead-funnel leads', 'pre.account_a.pmax.reported_funnel_leads'),
+      metricRow('Recorded conversions', 'pre.account_a.pmax.recorded_conversions'),
     ],
   },
   {
     title: 'Search',
     rows: [
-      { term: 'Spend', value: '₹928.39', evidence: 'documented' as const },
-      { term: 'Clicks', value: '7', evidence: 'documented' as const },
-      { term: 'CPC', value: '₹132.63', evidence: 'calculated' as const },
-      { term: 'Recorded conversions', value: '4', evidence: 'verified' as const },
+      metricRow('Spend', 'pre.account_a.search.spend'),
+      metricRow('Clicks', 'pre.account_a.search.clicks'),
+      metricRow('CPC', 'pre.account_a.search.cpc'),
+      metricRow('Recorded conversions', 'pre.account_a.search.recorded_conversions'),
     ],
   },
 ];
 
-export const comparisonCaution =
-  'This is not evidence that Search outperformed Performance Max. The Search campaign recorded seven clicks — far too small a sample — and the account’s measurement was unreliable across the board. The sample and measurement conditions are not comparable enough to support that conclusion.';
+export const comparisonCaution = `This is not evidence that Search outperformed Performance Max. The Search campaign recorded ${fmt('pre.account_a.search.clicks', 'words')} clicks — far too small a sample — and the account’s measurement was unreliable across the board. The sample and measurement conditions are not comparable enough to support that conclusion.`;
 
 export const pmaxState = {
   heading: 'Same campaign, two measurement states',
-  reported: { value: '171', label: 'reported lead-funnel leads' },
-  recorded: { value: '0', label: 'recorded conversions in the platform’s conversion column' },
+  reported: { value: fmt('pre.account_a.pmax.reported_funnel_leads'), label: 'reported lead-funnel leads' },
+  recorded: {
+    value: fmt('pre.account_a.pmax.recorded_conversions'),
+    label: 'recorded conversions in the platform’s conversion column',
+  },
   caution:
     'These are two different reports of the same campaign, not a before-and-after. This is not evidence that the campaign produced no enquiries; it is evidence that the account cannot currently tell you whether it did.',
 };
@@ -132,11 +146,11 @@ export const threeColumnsIntro =
 export const threeColumnsTerms: { term: string; body: string }[] = [
   {
     term: 'A click',
-    body: 'Somebody arrived. It says nothing about who they were or what they wanted, and 8,537 of them at ₹1.01 each is a traffic figure, not a lead figure.',
+    body: `Somebody arrived. It says nothing about who they were or what they wanted, and ${fmt('pre.account_a.pmax.clicks')} of them at ${fmt('pre.account_a.pmax.cpc')} each is a traffic figure, not a lead figure.`,
   },
   {
     term: 'A reported lead-funnel lead',
-    body: 'A number the platform surfaces in one of its own reports. It is real reporting, but it is not the conversion column, and the two do not have to agree — as the 171 against 0 above demonstrates.',
+    body: `A number the platform surfaces in one of its own reports. It is real reporting, but it is not the conversion column, and the two do not have to agree — as the ${fmt('pre.account_a.pmax.reported_funnel_leads')} against ${fmt('pre.account_a.pmax.recorded_conversions')} above demonstrates.`,
   },
   {
     term: 'A recorded conversion',
@@ -225,7 +239,7 @@ export const checklist: { title: string; body: string }[] = [
 ];
 
 export const beforeScaling = [
-  'The instinct with an account like this is to reallocate: move budget away from the campaign showing zero and towards the one showing seven. That instinct is exactly backwards.',
+  `The instinct with an account like this is to reallocate: move budget away from the campaign showing ${fmt('pre.account_a.pmax.recorded_conversions', 'words')} and towards the one showing ${fmt('pre.account_c.smart.recorded_conversions', 'words')}. That instinct is exactly backwards.`,
   'Nothing in this data establishes that the zero-conversion campaign underperformed. It establishes that the account could not measure it. Moving budget on that basis is not optimisation — it is acting on the absence of information as though it were information.',
   'What I would fix first, in order: get every conversion action verified and firing; define one conversion that corresponds to a real business event; make both campaign types record it identically; then connect that event back to whatever the business uses to track enquiries.',
   'Only after that does the performance question — which campaign type actually works here — become answerable. It is a slower path, and it is the only one that produces an answer worth having.',
@@ -243,12 +257,12 @@ export const relatedCaseStudies = [
   {
     slug: 'preschool-google-ads',
     label: 'When Google Ads Numbers Don’t Tell the Whole Story',
-    reason: 'The full diagnosis across all three preschool accounts, campaign by campaign.',
+    reason: `The full diagnosis across all ${accounts3} preschool accounts, campaign by campaign.`,
   },
   {
     slug: 'measurement-audit',
     label: 'I Audited My Own Ad Accounts Before Optimising Them',
-    reason: 'The wider audit across five Meta and Google accounts these checks came from.',
+    reason: `The wider audit across ${fmt('site.accounts', 'words')} Meta and Google accounts these checks came from.`,
   },
 ];
 

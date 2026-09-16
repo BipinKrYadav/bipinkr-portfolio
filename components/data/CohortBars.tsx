@@ -41,13 +41,29 @@ function Bar({ ratio, value, emphasis = false }: BarProps) {
 }
 
 /**
+ * A value's length relative to the largest value in its series, 0–1.
+ * A missing value draws no length (the bar keeps its minimum mark).
+ */
+function relativeTo(values: (number | null)[]) {
+  const max = Math.max(0, ...values.map((value) => value ?? 0));
+  return (value: number | null) => (value === null || max <= 0 ? 0 : value / max);
+}
+
+/**
  * Cohort comparison for the Meta lead generation case study.
  *
  * Two measures are shown separately — cost per lead and lead volume —
  * because they move in opposite directions and overlaying them on one
  * axis would imply a relationship the data does not establish.
+ *
+ * Bar lengths are computed from the cohorts' metric values, each measure
+ * scaled against its own largest value, so a changed figure redraws the
+ * chart instead of leaving a stale hand-typed ratio behind.
  */
 export function CohortBars({ cohorts, labelPrimary, labelSecondary, className }: CohortBarsProps) {
+  const cplRatio = relativeTo(cohorts.map((cohort) => cohort.cplValue));
+  const leadRatio = relativeTo(cohorts.map((cohort) => cohort.leadsValue));
+
   return (
     <figure className={cn('rounded-card border border-line bg-paper-raised p-6 sm:p-8', className)}>
       <figcaption className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -68,7 +84,11 @@ export function CohortBars({ cohorts, labelPrimary, labelSecondary, className }:
                 <p className="mb-1.5 text-xs uppercase tracking-[0.08em] text-ink-faint">
                   {cohort.name}
                 </p>
-                <Bar ratio={cohort.cplRatio} value={cohort.cpl} emphasis={index === cohorts.length - 1} />
+                <Bar
+                  ratio={cplRatio(cohort.cplValue)}
+                  value={cohort.cpl}
+                  emphasis={index === cohorts.length - 1}
+                />
               </div>
             ))}
           </div>
@@ -83,7 +103,7 @@ export function CohortBars({ cohorts, labelPrimary, labelSecondary, className }:
                   {cohort.name}
                 </p>
                 <Bar
-                  ratio={cohort.leadRatio}
+                  ratio={leadRatio(cohort.leadsValue)}
                   value={cohort.leads}
                   emphasis={index === cohorts.length - 1}
                 />

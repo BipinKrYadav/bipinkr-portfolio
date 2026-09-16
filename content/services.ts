@@ -1,5 +1,7 @@
 import { BarChart3, Gauge, LayoutTemplate, Search } from 'lucide-react';
 
+import { fmt } from '@/lib/metrics';
+
 import type { FlowNode, ProcessStep, ServiceContent } from './types';
 
 /**
@@ -58,7 +60,7 @@ export const services: ServiceContent[] = [
       'Before optimising Google Ads, check whether the conversion data deserves to be optimised.',
     evidence: {
       slug: 'preschool-google-ads',
-      label: 'Diagnosing preschool Google Ads across three accounts',
+      label: `Diagnosing preschool Google Ads across ${fmt('pre.accounts', 'words')} accounts`,
     },
     icon: Search,
   },
@@ -111,7 +113,7 @@ export const services: ServiceContent[] = [
     ],
     evidence: {
       slug: 'measurement-audit',
-      label: 'Auditing five ad accounts before optimising them',
+      label: `Auditing ${fmt('site.accounts', 'words')} ad accounts before optimising them`,
     },
     icon: Gauge,
   },

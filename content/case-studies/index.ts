@@ -1,3 +1,5 @@
+import { fmt } from '@/lib/metrics';
+
 import * as crossChannel from './cross-channel-real-estate';
 import * as measurementAudit from './measurement-audit';
 import * as metaLeadGen from './meta-lead-generation';
@@ -68,7 +70,7 @@ export const caseStudyRelated: Record<string, CaseStudyRelated> = {
     caseStudy: {
       slug: 'measurement-audit',
       label: 'Auditing My Own Ad Accounts',
-      reason: 'The wider audit these three preschool accounts sit inside.',
+      reason: `The wider audit these ${fmt('pre.accounts', 'words')} preschool accounts sit inside.`,
     },
   },
   'cross-channel-real-estate': {

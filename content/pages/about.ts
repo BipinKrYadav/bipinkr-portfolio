@@ -1,5 +1,7 @@
 import { BrainCircuit, Gauge, LayoutTemplate, LineChart, Target } from 'lucide-react';
 
+import { fmt } from '@/lib/metrics';
+
 export const aboutContent = {
   eyebrow: 'About',
   h1: 'I’m Bipin Kumar — a performance marketer focused on measurable growth.',
@@ -110,7 +112,7 @@ export const measurementLesson = {
   heading: 'One lesson changed how I look at performance data.',
   body: [
     'I ran a measurement audit across my own ad accounts before treating any of their numbers as a basis for optimisation.',
-    'It identified ₹38,898.65 of documented spend associated with unreliable, unverified or inflated measurement — roughly 34.9% of the total. Inflated conversion rates that could not be reconciled with click volume. Placeholder ₹1 conversion values. Conversion actions sitting unverified while campaigns kept spending.',
+    `It identified ${fmt('audit.unreliable_spend')} of documented spend associated with unreliable, unverified or inflated measurement — roughly ${fmt('audit.unreliable_share')} of the total. Inflated conversion rates that could not be reconciled with click volume. Placeholder ${fmt('audit.placeholder_conversion_value')} conversion values. Conversion actions sitting unverified while campaigns kept spending.`,
     'None of it was visible from the top-level dashboard. All of it would have quietly corrupted every optimisation decision made against it.',
   ],
   pullQuote: 'Before scaling a campaign, make sure the numbers deserve your trust.',

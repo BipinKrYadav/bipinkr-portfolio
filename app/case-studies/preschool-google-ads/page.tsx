@@ -45,7 +45,7 @@ export default function PreschoolGoogleAdsPage() {
         industry={cs.summary.industry}
         platform={cs.summary.platform}
         metrics={cs.heroMetrics}
-        scope="3 accounts"
+        scope={cs.heroScope}
       />
 
       <CaseStudyLayout sections={cs.sections} slug={cs.summary.slug}>
@@ -95,18 +95,7 @@ export default function PreschoolGoogleAdsPage() {
               id={account.id}
               heading={`Account ${account.letter} — ${account.name}`}
             >
-              <MetricGrid
-                metrics={[
-                  { value: account.spend, label: 'documented spend', evidence: 'documented' },
-                  {
-                    value: account.recordedConversions,
-                    label: 'recorded conversions',
-                    evidence: 'verified',
-                  },
-                ]}
-                columns={2}
-                size="sm"
-              />
+              <MetricGrid metrics={account.metrics} columns={2} size="sm" />
 
               <div className="prose-editorial mt-8">
                 {account.intro.map((paragraph) => (

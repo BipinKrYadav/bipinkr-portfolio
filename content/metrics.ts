@@ -1,3 +1,5 @@
+import { metric } from '@/lib/metrics';
+
 import type { Metric } from './types';
 
 /**
@@ -7,28 +9,15 @@ import type { Metric } from './types';
  * These describe *documented campaign activity*. They deliberately do not
  * describe revenue, qualified leads, bookings or client business outcomes,
  * none of which the available evidence establishes.
+ *
+ * Values and evidence grades come from the canonical metric registry
+ * (content/evidence/metrics).
  */
 export const proofMetrics: Metric[] = [
-  {
-    value: '₹1.11L+',
-    label: 'documented ad spend',
-    evidence: 'documented',
-  },
-  {
-    value: '1,617',
-    label: 'Meta form submissions',
-    evidence: 'verified',
-  },
-  {
-    value: '5',
-    label: 'ad accounts documented',
-    evidence: 'documented',
-  },
-  {
-    value: '15 months',
-    label: 'campaign evidence',
-    evidence: 'documented',
-  },
+  metric('site.spend_total', 'documented ad spend', { lowerBoundMarker: true }),
+  metric('re.form_submissions', 'Meta form submissions'),
+  metric('site.accounts', 'ad accounts documented'),
+  metric('site.evidence_months', 'campaign evidence'),
 ];
 
 export const proofMethodologyNote =
