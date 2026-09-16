@@ -6,8 +6,8 @@ import { WhatsAppButton } from '@/components/contact/WhatsAppButton';
 import { Button } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
 import { Section } from '@/components/ui/Section';
-import { caseStudies } from '@/content/case-studies';
-import { proofMethodologyNote, proofMetrics } from '@/content/metrics';
+import { caseStudies } from '@/lib/content/case-studies';
+import { proofMethodologyNote, proofMetrics } from '@/lib/content/proof-strip';
 import { ProofStrip } from '@/components/blocks/ProofStrip';
 import {
   auditFaq,

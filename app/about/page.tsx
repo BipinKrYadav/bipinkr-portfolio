@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
 import { Section } from '@/components/ui/Section';
 import { SectionHeading } from '@/components/ui/SectionHeading';
-import { proofMethodologyNote, proofMetrics } from '@/content/metrics';
+import { proofMethodologyNote, proofMetrics } from '@/lib/content/proof-strip';
 import {
   aboutContent,
   approach,
@@ -21,9 +21,9 @@ import {
   principles,
   realEstateFocus,
   recruiterSection,
-} from '@/content/pages/about';
+} from '@/lib/content/pages/about';
 import { hasLinkedIn, siteConfig } from '@/content/site-config';
-import { funnelNodes } from '@/content/services';
+import { funnelNodes } from '@/lib/content/services';
 import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({

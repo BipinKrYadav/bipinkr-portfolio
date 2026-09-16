@@ -14,7 +14,7 @@ import { ComparisonBlock } from '@/components/data/ComparisonBlock';
 import { DataTable } from '@/components/data/DataTable';
 import { MetricGrid } from '@/components/data/MetricCard';
 import { ScaleFunnel } from '@/components/data/ScaleFunnel';
-import * as cs from '@/content/case-studies/measurement-audit';
+import * as cs from '@/lib/content/case-studies/measurement-audit';
 import { breadcrumbSchema, buildMetadata, jsonLd } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({

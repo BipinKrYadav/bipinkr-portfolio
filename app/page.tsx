@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
 import { Section } from '@/components/ui/Section';
 import { SectionHeading } from '@/components/ui/SectionHeading';
-import { caseStudies } from '@/content/case-studies';
-import { proofMethodologyNote, proofMetrics } from '@/content/metrics';
+import { caseStudies } from '@/lib/content/case-studies';
+import { proofMethodologyNote, proofMetrics } from '@/lib/content/proof-strip';
 import { PRIMARY_CTA } from '@/content/navigation';
 import {
   aboutSnippet,
@@ -22,8 +22,8 @@ import {
   intro,
   servicesSection,
   whyWorkWithMe,
-} from '@/content/pages/home';
-import { processSteps, services } from '@/content/services';
+} from '@/lib/content/pages/home';
+import { processSteps, services } from '@/lib/content/services';
 import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({

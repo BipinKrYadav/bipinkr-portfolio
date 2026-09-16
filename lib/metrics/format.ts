@@ -36,9 +36,33 @@ export type MetricFormat =
   /** Five */
   | 'words_capitalised';
 
+/** Every format, for schemas and token validation. Kept in step with `MetricFormat` by the type check below. */
+export const METRIC_FORMATS = [
+  'inr',
+  'inr_whole',
+  'inr_lakh',
+  'inr_thousands_1dp',
+  'inr_thousands_2dp',
+  'integer',
+  'percent_0dp',
+  'percent_1dp',
+  'percent_2dp',
+  'multiple_0dp',
+  'multiple_1dp',
+  'months',
+  'words',
+  'words_capitalised',
+] as const satisfies readonly MetricFormat[];
+
+type MissingFormats = Exclude<MetricFormat, (typeof METRIC_FORMATS)[number]>;
+const everyFormatListed: [MissingFormats] extends [never] ? true : never = true;
+void everyFormatListed;
+
 export interface FormatOptions {
   /** Append "+" when the stored value is only a lower bound. */
   lowerBoundMarker?: boolean;
+  /** Text appended only when a value exists, e.g. " CPL". A missing value still renders as "—". */
+  suffix?: string;
 }
 
 /** Rendered wherever a value is missing or not calculable. */
@@ -77,9 +101,10 @@ export function formatValue(
   options: FormatOptions = {},
 ): string {
   if (value === null) return EMPTY_VALUE;
+  return `${formatNumber(value, format, options.lowerBoundMarker && isLowerBound ? '+' : '')}${options.suffix ?? ''}`;
+}
 
-  const marker = options.lowerBoundMarker && isLowerBound ? '+' : '';
-
+function formatNumber(value: number, format: MetricFormat, marker: string): string {
   switch (format) {
     case 'inr':
       return `₹${grouped(value, 2)}${marker}`;

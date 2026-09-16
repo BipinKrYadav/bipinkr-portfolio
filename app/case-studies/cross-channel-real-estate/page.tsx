@@ -14,7 +14,7 @@ import { ComparisonBlock } from '@/components/data/ComparisonBlock';
 import { DataTable } from '@/components/data/DataTable';
 import { MetricGrid } from '@/components/data/MetricCard';
 import { EvidenceLabel } from '@/components/ui/EvidenceLabel';
-import * as cs from '@/content/case-studies/cross-channel-real-estate';
+import * as cs from '@/lib/content/case-studies/cross-channel-real-estate';
 import { breadcrumbSchema, buildMetadata, jsonLd } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({

@@ -1,3 +1,6 @@
+import { labelToken } from '../lib/content/token-grammar';
+import { isTokenMode } from '../lib/metrics/render-mode';
+
 /**
  * Account and campaign labelling.
  *
@@ -19,5 +22,7 @@ export const ANONYMISE_LABELS = false;
  * @param anonymous The neutral stand-in used when anonymisation is on.
  */
 export function label(actual: string, anonymous: string): string {
+  // The snapshot exporter keeps both names, so the switch still works for snapshot-built pages.
+  if (isTokenMode()) return labelToken(actual, anonymous);
   return ANONYMISE_LABELS ? anonymous : actual;
 }

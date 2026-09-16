@@ -14,7 +14,7 @@ import { CohortBars } from '@/components/data/CohortBars';
 import { DataTable } from '@/components/data/DataTable';
 import { MetricGrid } from '@/components/data/MetricCard';
 import { EvidenceLabel } from '@/components/ui/EvidenceLabel';
-import * as cs from '@/content/case-studies/meta-lead-generation';
+import * as cs from '@/lib/content/case-studies/meta-lead-generation';
 import { breadcrumbSchema, buildMetadata, jsonLd } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({

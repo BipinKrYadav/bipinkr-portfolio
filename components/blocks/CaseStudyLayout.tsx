@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 
 import { TableOfContents } from '@/components/blocks/TableOfContents';
 import { Container } from '@/components/ui/Container';
-import { caseStudyRelated, getNextCaseStudy } from '@/content/case-studies';
+import { caseStudyRelated, getNextCaseStudy } from '@/lib/content/case-studies';
 import type { CaseStudySection } from '@/content/types';
 import { cn } from '@/lib/utils';
 

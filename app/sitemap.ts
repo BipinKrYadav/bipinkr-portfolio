@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 
 import { articles } from '@/content/blog';
-import { caseStudySlugs } from '@/content/case-studies';
+import { caseStudySlugs } from '@/lib/content/case-studies';
 import { absoluteUrl } from '@/content/site-config';
 
 // Required by `output: 'export'` — emitted as a static file at build time.

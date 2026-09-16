@@ -7,7 +7,7 @@ import { WhatsAppButton } from '@/components/contact/WhatsAppButton';
 import { Button } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
 import { Section } from '@/components/ui/Section';
-import { auditOffer, contactContent, formCopy, recruiterCta } from '@/content/pages/contact';
+import { auditOffer, contactContent, formCopy, recruiterCta } from '@/lib/content/pages/contact';
 import {
   hasEmail,
   hasLinkedIn,

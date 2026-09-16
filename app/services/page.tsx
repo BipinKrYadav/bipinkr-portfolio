@@ -14,7 +14,7 @@ import {
   services,
   servicesCta,
   servicesPageContent,
-} from '@/content/services';
+} from '@/lib/content/services';
 import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({

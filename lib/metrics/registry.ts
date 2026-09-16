@@ -1,7 +1,10 @@
-import { linkedPhrases } from '../../content/evidence/linked-phrases';
-import { metricDefinitions } from '../../content/evidence/metrics';
+import { linkedPhrases as typescriptLinkedPhrases } from '../../content/evidence/linked-phrases';
+import { metricDefinitions as typescriptMetricDefinitions } from '../../content/evidence/metrics';
+import { loadSnapshot } from '../snapshot/load';
+import { toPublicMetric } from '../snapshot/public-metric';
+import { contentSource } from '../snapshot/source';
 import { evaluateFormula, formulaInputs } from './formulas';
-import type { MetricDefinition, MetricId } from './types';
+import type { LinkedPhrase, MetricId, PublicMetricDefinition } from './types';
 
 /**
  * The resolved registry.
@@ -10,12 +13,30 @@ import type { MetricDefinition, MetricId } from './types';
  * duplicate id, a formula pointing at a metric that does not exist, a
  * circular formula, a legacy figure with no explanation — throws, which fails
  * the build rather than shipping a page with a wrong or missing number.
+ *
+ * Definitions come from the content snapshot (snapshot/baseline.json) by
+ * default, or from the Phase 2 TypeScript source when CONTENT_SOURCE=typescript.
+ * Either way only public fields are loaded.
  */
 
 const ID_PATTERN = /^[a-z0-9_]+(\.[a-z0-9_]+){1,5}$/;
 
-function buildIndex(definitions: readonly MetricDefinition[]): Map<MetricId, MetricDefinition> {
-  const index = new Map<MetricId, MetricDefinition>();
+function loadDefinitions(): { metrics: readonly PublicMetricDefinition[]; linkedPhrases: readonly LinkedPhrase[] } {
+  if (contentSource() === 'typescript') {
+    return {
+      metrics: typescriptMetricDefinitions.map(toPublicMetric),
+      linkedPhrases: typescriptLinkedPhrases,
+    };
+  }
+  const snapshot = loadSnapshot();
+  return { metrics: snapshot.metrics, linkedPhrases: snapshot.linkedPhrases };
+}
+
+function buildIndex(
+  definitions: readonly PublicMetricDefinition[],
+  linkedPhrases: readonly LinkedPhrase[],
+): Map<MetricId, PublicMetricDefinition> {
+  const index = new Map<MetricId, PublicMetricDefinition>();
   const problems: string[] = [];
 
   for (const metric of definitions) {
@@ -94,10 +115,12 @@ function buildIndex(definitions: readonly MetricDefinition[]): Map<MetricId, Met
   return index;
 }
 
-const index = buildIndex(metricDefinitions);
+const source = loadDefinitions();
+const metricDefinitions = source.metrics;
+const index = buildIndex(metricDefinitions, source.linkedPhrases);
 const valueCache = new Map<MetricId, number | null>();
 
-export function getMetric(id: MetricId): MetricDefinition {
+export function getMetric(id: MetricId): PublicMetricDefinition {
   const metric = index.get(id);
   if (!metric) throw new Error(`Unknown metric id: ${id}`);
   return metric;
@@ -113,7 +136,7 @@ export function metricValue(id: MetricId): number | null {
   return value;
 }
 
-export function allMetrics(): readonly MetricDefinition[] {
+export function allMetrics(): readonly PublicMetricDefinition[] {
   return metricDefinitions;
 }
 

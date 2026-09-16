@@ -1,4 +1,4 @@
-import type { Cohort } from '@/content/case-studies/meta-lead-generation';
+import type { Cohort } from '@/lib/content/case-studies/meta-lead-generation';
 import { cn } from '@/lib/utils';
 
 interface CohortBarsProps {

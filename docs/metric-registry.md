@@ -146,9 +146,13 @@ and ₹32.29), it is listed as a linked phrase and must be reviewed by hand.
 
 ## 8. Changing a figure (until the admin panel exists)
 
+The build reads metrics from `snapshot/baseline.json` (see
+`docs/content-snapshot.md`); the TypeScript records below are its source.
+
 1. Check the figure against the original source.
 2. Edit `value` in `content/evidence/metrics/<dataset>.ts`. Update
-   `reportingPeriod`, `sourceReference` and `notes` as needed.
+   `reportingPeriod`, `sourceReference` and `notes` as needed, then run
+   `npm run snapshot:export` and `npm run snapshot:check`.
 3. Change `evidenceStatus` only if the new check supports a different grade.
 4. Review the linked phrases for that metric and anything depending on it.
 5. For a `legacy_fixed` figure whose inputs you now have: enter the inputs as raw

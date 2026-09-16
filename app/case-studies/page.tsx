@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
 import { EvidenceLabel } from '@/components/ui/EvidenceLabel';
 import { Section } from '@/components/ui/Section';
-import { caseStudies, caseStudyIndexContent } from '@/content/case-studies';
-import { proofMethodologyNote } from '@/content/metrics';
+import { caseStudies, caseStudyIndexContent } from '@/lib/content/case-studies';
+import { proofMethodologyNote } from '@/lib/content/proof-strip';
 import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({

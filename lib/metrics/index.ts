@@ -1,6 +1,8 @@
 import type { EvidenceKind, Metric } from '../../content/types';
+import { evidenceToken, metricToken } from '../content/token-grammar';
 import { formatValue, type FormatOptions, type MetricFormat } from './format';
-import { getMetric, metricValue } from './registry';
+import { getMetric, metricValue as resolvedValue } from './registry';
+import { isTokenMode } from './render-mode';
 import type { MetricId } from './types';
 
 /**
@@ -11,19 +13,32 @@ import type { MetricId } from './types';
  * Content modules never type an evidence-backed number. They ask for it by
  * id, in the format the placement needs, and every placement of the same
  * metric therefore shows the same underlying value.
+ *
+ * In token mode (used only by the snapshot exporter) the same calls return
+ * references instead of values — see ./render-mode.ts.
  */
 
-export { EMPTY_VALUE } from './format';
+export { EMPTY_VALUE, METRIC_FORMATS } from './format';
 export type { FormatOptions, MetricFormat } from './format';
 export { formulaDescriptions } from './formulas';
-export { allMetrics, directDependents, getMetric, metricValue } from './registry';
+export { allMetrics, directDependents, getMetric } from './registry';
 export type * from './types';
+
+/** A metric's numeric value (unrounded). */
+export function metricValue(id: MetricId): number | null {
+  if (isTokenMode()) {
+    getMetric(id);
+    return { $metricValue: id } as unknown as number | null;
+  }
+  return resolvedValue(id);
+}
 
 /** A metric as display text. Missing values render as "—". */
 export function fmt(id: MetricId, format?: MetricFormat, options?: FormatOptions): string {
   const metric = getMetric(id);
+  if (isTokenMode()) return metricToken(id, format, options);
   return formatValue(
-    metricValue(id),
+    resolvedValue(id),
     format ?? metric.displayFormat,
     metric.precision === 'lower_bound',
     options,
@@ -32,7 +47,9 @@ export function fmt(id: MetricId, format?: MetricFormat, options?: FormatOptions
 
 /** The metric's recorded evidence grade, as the chip components expect it. */
 export function evidenceOf(id: MetricId): EvidenceKind | undefined {
-  return getMetric(id).evidenceStatus ?? undefined;
+  const metric = getMetric(id);
+  if (isTokenMode()) return evidenceToken(id) as EvidenceKind;
+  return metric.evidenceStatus ?? undefined;
 }
 
 interface MetricDisplayOptions extends FormatOptions {
@@ -61,7 +78,7 @@ export function metricRow(term: string, id: MetricId, format?: MetricFormat) {
   return { term, value: fmt(id, format), evidence: evidenceOf(id) };
 }
 
-interface MetricPairOptions {
+export interface MetricPairOptions {
   /** Defaults to " → ". */
   separator?: string;
   format?: MetricFormat;
@@ -79,8 +96,8 @@ export function metricPair(
   label: string,
   options: MetricPairOptions = {},
 ): Metric {
-  const first = evidenceOf(firstId);
-  const second = evidenceOf(secondId);
+  const first = getMetric(firstId).evidenceStatus ?? undefined;
+  const second = getMetric(secondId).evidenceStatus ?? undefined;
 
   if (!options.evidence && first !== second) {
     throw new Error(
@@ -88,10 +105,18 @@ export function metricPair(
     );
   }
 
-  const display: Metric = {
-    value: `${fmt(firstId, options.format)}${options.separator ?? ' → '}${fmt(secondId, options.format)}`,
-    label,
-  };
+  const value = `${fmt(firstId, options.format)}${options.separator ?? ' → '}${fmt(secondId, options.format)}`;
+
+  if (isTokenMode()) {
+    // Stored as a reference so the grade check above runs again at build time.
+    const pair: Record<string, unknown> = { first: firstId, second: secondId };
+    if (options.separator !== undefined) pair.separator = options.separator;
+    if (options.format !== undefined) pair.format = options.format;
+    if (options.evidence !== undefined) pair.evidence = options.evidence;
+    return { $pair: pair, label, value } as unknown as Metric;
+  }
+
+  const display: Metric = { value, label };
   const evidence = options.evidence ?? first;
   if (evidence) display.evidence = evidence;
   return display;

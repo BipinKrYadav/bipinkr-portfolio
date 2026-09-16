@@ -176,11 +176,10 @@ export interface VariantObservation {
 
 /** One side of a variant pair. A CPL with no recorded results renders as a bare "—". */
 function variantSide(base: string, resultsWord: string) {
-  const cpl = fmt(`${base}.cpl`);
   return {
     spend: fmt(`${base}.spend`),
     leads: `${fmt(`${base}.leads`)} ${resultsWord}`,
-    cpl: metricValue(`${base}.cpl`) === null ? cpl : `${cpl} CPL`,
+    cpl: fmt(`${base}.cpl`, undefined, { suffix: ' CPL' }),
   };
 }
 

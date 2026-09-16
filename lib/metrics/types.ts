@@ -153,6 +153,21 @@ export interface LegacyFixedMetric extends MetricBase {
 export type MetricDefinition = RawMetric | CalculatedMetric | LegacyFixedMetric;
 
 /**
+ * Fields kept out of every snapshot and build: the private source reference
+ * and internal notes. They stay in the TypeScript source (and, later, the
+ * admin database) only.
+ */
+export const PRIVATE_METRIC_FIELDS = ['sourceReference', 'notes'] as const;
+
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+/** A metric as it appears in a snapshot and in the site build. */
+export type PublicMetricDefinition = DistributiveOmit<
+  MetricDefinition,
+  (typeof PRIVATE_METRIC_FIELDS)[number]
+>;
+
+/**
  * Wording that restates a metric in words rather than rendering it, so it
  * cannot update automatically. Recorded so a change to the metric can flag
  * the wording for review instead of silently leaving it stale.

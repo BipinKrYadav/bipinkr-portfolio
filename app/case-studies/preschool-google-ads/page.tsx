@@ -13,7 +13,7 @@ import { FlowDiagram } from '@/components/data/FlowDiagram';
 import { MetricGrid } from '@/components/data/MetricCard';
 import { StateComparison } from '@/components/data/StateComparison';
 import { EvidenceLabel } from '@/components/ui/EvidenceLabel';
-import * as cs from '@/content/case-studies/preschool-google-ads';
+import * as cs from '@/lib/content/case-studies/preschool-google-ads';
 import { breadcrumbSchema, buildMetadata, jsonLd } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({

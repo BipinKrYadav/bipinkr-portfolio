@@ -6,8 +6,8 @@ import { LeadConversion } from '@/components/tracking/LeadConversion';
 import { Button } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
 import { Section } from '@/components/ui/Section';
-import { caseStudies } from '@/content/case-studies';
-import { thankYouContent } from '@/content/pages/contact';
+import { caseStudies } from '@/lib/content/case-studies';
+import { thankYouContent } from '@/lib/content/pages/contact';
 import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({
