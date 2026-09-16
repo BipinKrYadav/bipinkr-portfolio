@@ -36,7 +36,7 @@ a figure, change it in one place.
 | `meta-lead-generation` | `content/case-studies/meta-lead-generation.ts` | `app/case-studies/meta-lead-generation/page.tsx` |
 | `measurement-audit` | `content/case-studies/measurement-audit.ts` | `app/case-studies/measurement-audit/page.tsx` |
 | `preschool-google-ads` | `content/case-studies/preschool-google-ads.ts` | `app/case-studies/preschool-google-ads/page.tsx` |
-| `cross-channel-meta-google` | `content/case-studies/cross-channel-meta-google.ts` | `app/case-studies/cross-channel-meta-google/page.tsx` |
+| `cross-channel-real-estate` | `content/case-studies/cross-channel-real-estate.ts` | `app/case-studies/cross-channel-real-estate/page.tsx` |
 
 `content/case-studies/index.ts` collects the four `summary` objects. It drives
 the homepage section, the case study index, the sitemap and the

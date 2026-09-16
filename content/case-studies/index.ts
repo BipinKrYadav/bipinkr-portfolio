@@ -1,4 +1,4 @@
-import * as crossChannel from './cross-channel-meta-google';
+import * as crossChannel from './cross-channel-real-estate';
 import * as measurementAudit from './measurement-audit';
 import * as metaLeadGen from './meta-lead-generation';
 import * as preschool from './preschool-google-ads';
@@ -50,7 +50,7 @@ export const caseStudyRelated: Record<string, CaseStudyRelated> = {
   'meta-lead-generation': {
     services: [{ href: '/services/#meta-ads', label: 'Meta Ads & Lead Generation' }],
     caseStudy: {
-      slug: 'cross-channel-meta-google',
+      slug: 'cross-channel-real-estate',
       label: 'Cross-Channel Meta + Google Ads',
       reason: 'The same real estate market, measured across two platforms.',
     },
@@ -71,7 +71,7 @@ export const caseStudyRelated: Record<string, CaseStudyRelated> = {
       reason: 'The wider audit these three preschool accounts sit inside.',
     },
   },
-  'cross-channel-meta-google': {
+  'cross-channel-real-estate': {
     services: [
       { href: '/services/#meta-ads', label: 'Meta Ads & Lead Generation' },
       { href: '/services/#google-ads', label: 'Google Ads & Search Acquisition' },

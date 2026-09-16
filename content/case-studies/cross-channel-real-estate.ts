@@ -7,7 +7,7 @@ import type {
 } from '../types';
 
 export const summary: CaseStudySummary = {
-  slug: 'cross-channel-meta-google',
+  slug: 'cross-channel-real-estate',
   title: 'Cross-Channel Lead Generation for Real Estate: Meta + Google Ads',
   cardTitle: 'Cross-Channel Meta + Google Ads',
   subtitle:

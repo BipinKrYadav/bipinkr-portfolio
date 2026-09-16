@@ -220,7 +220,7 @@ enquiry or a confirmed qualified lead.
 
 ## 7. Case study 4 — Cross-channel Meta + Google
 
-Source: `content/case-studies/cross-channel-meta-google.ts`.
+Source: `content/case-studies/cross-channel-real-estate.ts`.
 
 | Channel | Spend | Recorded outcome | Grade |
 |---|---|---|---|

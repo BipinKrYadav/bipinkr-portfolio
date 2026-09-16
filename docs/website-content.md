@@ -39,7 +39,7 @@ content/
 | `/case-studies/meta-lead-generation` | …`/meta-lead-generation/page.tsx` | `content/case-studies/meta-lead-generation.ts` |
 | `/case-studies/measurement-audit` | …`/measurement-audit/page.tsx` | `content/case-studies/measurement-audit.ts` |
 | `/case-studies/preschool-google-ads` | …`/preschool-google-ads/page.tsx` | `content/case-studies/preschool-google-ads.ts` |
-| `/case-studies/cross-channel-meta-google` | …`/cross-channel-meta-google/page.tsx` | `content/case-studies/cross-channel-meta-google.ts` |
+| `/case-studies/cross-channel-real-estate` | …`/cross-channel-real-estate/page.tsx` | `content/case-studies/cross-channel-real-estate.ts` |
 | `/services` | `app/services/page.tsx` | `content/services.ts` |
 | `/about` | `app/about/page.tsx` | `content/pages/about.ts` |
 | `/contact` | `app/contact/page.tsx` | `content/pages/contact.ts` |

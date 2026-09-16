@@ -46,6 +46,11 @@ ErrorDocument 404 /404.html
   RewriteEngine On
   RewriteBase /
 
+  # Renamed case study: permanent redirect from the retired slug to the
+  # approved one. Placed before the real-file passthrough below so it still
+  # wins if the old folder is left behind on the server after a deploy.
+  RewriteRule ^case-studies/cross-channel-meta-google(/.*)?$ /case-studies/cross-channel-real-estate/ [R=301,L]
+
   # Never rewrite a request that maps to a real file or directory.
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
