@@ -10,7 +10,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "snapshot:export": "node --import ./scripts/snapshot/register.mjs scripts/snapshot/export-baseline.ts",
-    "snapshot:check": "node --import ./scripts/snapshot/register.mjs scripts/snapshot/check-snapshot.ts"
+    "snapshot:check": "node --import ./scripts/snapshot/register.mjs scripts/snapshot/check-snapshot.ts",
+    "db:verify": "node scripts/db/verify.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.469.0",
@@ -20,6 +21,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@types/node": "^22.10.6",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",

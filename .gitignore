@@ -41,6 +41,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
+# supabase cli local state (project refs, local branches, generated secrets)
+/supabase/.temp/
+/supabase/.branches/
+/supabase/.env
+/supabase/seed.sql
+
 # ---------------------------------------------------------------
 # Raw evidence: campaign exports must NEVER be committed publicly.
 # They contain account IDs, campaign IDs and lead-level data.
