@@ -18,6 +18,7 @@ export function createUnavailableAuthClient(state: UnavailableState): AdminAuthC
     signInWithPassword: async () => ({ ok: false, error }),
     verifyTotp: async () => ({ ok: false, error }),
     signOut: async () => undefined,
+    getAccessToken: async () => null,
     subscribe: () => () => undefined,
   };
 }

@@ -1,12 +1,13 @@
-import { CircleAlert, Info, TriangleAlert } from 'lucide-react';
+import { CircleAlert, CircleCheck, Info, TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { cn } from '@admin/lib/cn';
 
-type NoticeTone = 'info' | 'warning' | 'danger';
+type NoticeTone = 'info' | 'success' | 'warning' | 'danger';
 
 const tones: Record<NoticeTone, { className: string; icon: typeof Info }> = {
   info: { className: 'border-[#C7D2E4] bg-[#EEF2F8] text-evidence-calculated', icon: Info },
+  success: { className: 'border-accent-line bg-accent-soft text-accent-ink', icon: CircleCheck },
   warning: { className: 'border-[#E2D3B0] bg-[#F8F2E4] text-evidence-reported', icon: TriangleAlert },
   danger: { className: 'border-[#E3C6C0] bg-[#F9EDEA] text-evidence-limitation', icon: CircleAlert },
 };

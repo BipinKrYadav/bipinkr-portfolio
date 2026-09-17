@@ -329,11 +329,23 @@ select test_helpers.expect_error(
        change_reason = 'test' where metric_key = 'test.fixture.cpl'$$,
   'circular formulas are rejected');
 
+insert into public.metrics (metric_key, name, description, kind, value_type, unit, value, display_format,
+  data_origin, source_type, reporting_period_note)
+values ('test.fixture.retired', 'n', 'd', 'raw', 'count', 'lead', 3, 'integer', 'platform', 'platform_export', 'n'),
+       ('test.fixture.clicks', 'n', 'd', 'raw', 'count', 'click', 9, 'integer', 'platform', 'platform_export', 'n');
+select public.archive_metric((select id from public.metrics where metric_key = 'test.fixture.retired'), 'Fixture retired');
+select test_helpers.expect_error(
+  $$insert into public.metrics (metric_key, name, description, kind, value_type, unit, formula, display_format,
+     data_origin, source_type, reporting_period_note)
+    values ('test.fixture.uses_retired', 'n', 'd', 'calculated', 'count', 'lead', '{"fn":"sum","terms":["test.fixture.retired"]}',
+            'integer', 'derived', 'calculation', 'n')$$,
+  'a formula cannot read an archived metric');
+
 select test_helpers.expect_error(
   $$update public.metrics set metric_key = 'test.fixture.renamed' where metric_key = 'test.fixture.leads'$$,
   'metric keys cannot change');
 select test_helpers.expect_error(
-  $$update public.metrics set archived_at = now() where metric_key = 'test.fixture.leads'$$,
+  $$select public.archive_metric((select id from public.metrics where metric_key = 'test.fixture.leads'))$$,
   'a metric used by a formula cannot be archived');
 select test_helpers.expect_error(
   $$delete from public.metrics where metric_key = 'test.fixture.cpl_total'$$,
@@ -504,10 +516,10 @@ select test_helpers.expect(
 insert into public.linked_phrases (location, phrase, metric_keys, reason)
 values ('fixture', 'nearly doubled', array['test.fixture.cpl_total'], 'Qualitative restatement');
 select test_helpers.expect_error(
-  $$update public.metrics set archived_at = now() where metric_key = 'test.fixture.cpl_total'$$,
+  $$select public.archive_metric((select id from public.metrics where metric_key = 'test.fixture.cpl_total'))$$,
   'a metric referenced by a linked phrase cannot be archived');
 delete from public.linked_phrases where phrase = 'nearly doubled';
-update public.metrics set archived_at = now() where metric_key = 'test.fixture.cpl_total';
+select public.archive_metric((select id from public.metrics where metric_key = 'test.fixture.cpl_total'));
 select test_helpers.expect(
   (select archived_at is not null from public.metrics where metric_key = 'test.fixture.cpl_total'),
   'once the linked phrase is removed, the metric can be archived');
@@ -515,6 +527,23 @@ select test_helpers.expect(
 select test_helpers.expect_error(
   $$insert into public.redirects (from_path, to_path, reason) values ('/a/', '/a/', 'loop')$$,
   'a redirect cannot point to itself');
+
+-- Metric references from page content and linked phrases (migration 8)
+select test_helpers.expect_error(
+  $$insert into public.document_metric_refs (document_id, field_path, metric_id)
+    select d.id, 'summary.title', m.id from public.documents d, public.metrics m
+     where d.slug = 'fixture-case-study' and m.metric_key = 'test.fixture.retired'$$,
+  'page content cannot reference an archived metric');
+select test_helpers.expect_error(
+  $$insert into public.linked_phrases (location, phrase, metric_keys, reason)
+    values ('fixture', 'a handful', array['test.fixture.retired'], 'Qualitative restatement')$$,
+  'a linked phrase cannot reference an archived metric');
+insert into public.document_metric_refs (document_id, field_path, metric_id)
+select d.id, 'summary.clicks', m.id from public.documents d, public.metrics m
+ where d.slug = 'fixture-case-study' and m.metric_key = 'test.fixture.clicks';
+select test_helpers.expect_error(
+  $$select public.archive_metric((select id from public.metrics where metric_key = 'test.fixture.clicks'))$$,
+  'a metric referenced by page content cannot be archived');
 
 -- ---------------------------------------------------------------------
 -- 12. Storage

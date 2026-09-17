@@ -42,6 +42,11 @@ export interface AdminAuthClient {
   /** Step 2: TOTP code from the enrolled authenticator app. */
   verifyTotp(code: string): Promise<AuthResult>;
   signOut(): Promise<void>;
+  /**
+   * Access token for the current MFA-verified admin session, used as the
+   * bearer token for database requests. Null whenever there is no such session.
+   */
+  getAccessToken(): Promise<string | null>;
   /** Notifies on every state change. Returns an unsubscribe function. */
   subscribe(listener: (state: AuthState) => void): () => void;
 }

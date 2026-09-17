@@ -19,6 +19,8 @@ supabase/
     20260917000500_media_and_evidence.sql       media assets/usages, evidence files, metric↔evidence links
     20260917000600_rls_and_grants.sql           RLS, column grants, policies
     20260917000700_storage.sql                  private buckets and storage policies
+    20260917000800_active_metric_references.sql page content and linked phrases may reference active metrics only
+    20260917000900_metric_verification_and_archive.sql  dependency-aware verification view; archive_metric() with database time
   tests/
     admin_foundation.test.sql                   one transaction, rolled back
 ```
@@ -33,14 +35,15 @@ supabase/
 | `audit_log` | Append-only record of every change | Written by triggers and functions. Update, delete and truncate are blocked for every role. `token_hash` is stripped. |
 | `metrics` | Canonical figures (mirrors `lib/metrics/types.ts`) | `metric_key` is unique and immutable. Shape checks apply per kind (raw, calculated, legacy_fixed). A formula must use the fixed function list, and its inputs must exist, be active and form no cycle. Currency matches value type. |
 | `metric_versions` | Full before/after history of each metric | FK → metrics, releases. Append-only, except the pipeline may link it to a release once. |
+| `metric_verification` (view) | Verification state of every metric | `security_invoker`, so admin-only through RLS. States: `not_verified`, `verified_current`, `changed_since_verification`. A metric is stale when its own figure (value, kind, formula, precision) or its evidence status changed after its last source check, or when any formula input changed after that check, at any depth. `stale_inputs` lists which inputs changed. Read-only. |
 | `metric_evidence` | Links a metric to a private evidence file | PK (metric, file). `locator` is private. |
 | `evidence_files` | Metadata for files in the private `evidence` bucket | MIME allow-list, 20 MB limit, sha256. The file identity cannot change after upload. |
 | `media_assets` | Metadata for originals in the private `media-originals` bucket | MIME allow-list, 10 MB limit (5 MB for PDF), sha256, alt text and redaction flag. An asset in use cannot be archived. |
 | `media_usages` | Where each asset is used | PK (asset, document, field_path). |
 | `documents` | Editable page drafts, in token form | Unique (doc_type, slug). Type and slug are immutable. Status and published revision are set only by the pipeline, and a published document must have a revision. |
 | `document_revisions` | Frozen published content | Auto-numbered per document and append-only. Linked to a release. |
-| `document_metric_refs` | Which metrics a document uses, and where | Drives the impact preview. Blocks archiving any metric that is referenced. |
-| `linked_phrases` | Wording that restates a metric in words, so it cannot update itself (see below) | Unique (location, phrase). `metric_keys` must name existing metrics, and a referenced metric cannot be archived. `reviewed_by` comes from the session. |
+| `document_metric_refs` | Which metrics a document uses, and where | Drives the impact preview. Blocks archiving any metric that is referenced. New references must point at active metrics. |
+| `linked_phrases` | Wording that restates a metric in words, so it cannot update itself (see below) | Unique (location, phrase). `metric_keys` must name existing metrics (active ones when keys are set or changed), and a referenced metric cannot be archived. `reviewed_by` comes from the session. |
 | `blocked_phrases` | Claims-ledger blocklist | Unique on lower(phrase). |
 | `redirects` | Reserved for later (slugs are locked in v1) | Paths start with `/`, may not redirect to themselves, and use 301 or 308. |
 | `releases` | Publish and rollback runs | Allowed status transitions only. At most one in progress and one live. The snapshot and its sha256 are frozen once queued. |
@@ -73,7 +76,9 @@ How `linked_phrases` maps to the existing content model:
 - `evidence_status` can be chosen when a metric is created. After that it changes only through `set_metric_evidence_status(metric_id, status, reason)`, which requires an admin and a reason.
 - `verified_by`, `verified_at`, `verified_value`, `verified_status` and `verification_source` are written only by `confirm_metric_verification(metric_id, note)`. It records the value and status at that moment.
 - Changing `value`, `kind`, `formula` or `precision` requires `change_reason` in the same update. The reason is moved into `metric_versions.reason` and is never kept on the row.
-- Editing a value never touches the status or the verification record. "Changed since last verified" is therefore always `value <> verified_value`, and the database never grades evidence by itself.
+- Editing a value never touches the status or the verification record, and the database never grades evidence by itself.
+- Whether a source check still covers a metric is computed by the `metric_verification` view (migration 9). It includes changes to the metric's formula inputs at any depth, so editing Spend makes a verified CPL, and anything calculated from that CPL, stale until re-verified.
+- Archiving goes through `archive_metric(metric_id, reason)`. API roles cannot write `archived_at`. A trigger stamps database time on every archive, for every role, and rejects unarchiving or changing the archive time.
 - The trigger refuses direct status or verification writes even if a future migration grants those columns (tested).
 
 ---

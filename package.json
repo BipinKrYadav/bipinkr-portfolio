@@ -14,7 +14,8 @@
     "db:verify": "node scripts/db/verify.mjs",
     "admin:dev": "next dev admin --port 3100",
     "admin:build": "next build admin",
-    "admin:check": "node scripts/admin/check-isolation.mjs"
+    "admin:check": "node scripts/admin/check-isolation.mjs",
+    "admin:test": "node --import ./scripts/snapshot/register.mjs --test \"admin/tests/*.test.ts\""
   },
   "dependencies": {
     "lucide-react": "^0.469.0",
