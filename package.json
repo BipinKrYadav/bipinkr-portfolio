@@ -7,11 +7,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "npx serve out",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit",
+    "lint": "next lint && next lint admin",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p admin",
     "snapshot:export": "node --import ./scripts/snapshot/register.mjs scripts/snapshot/export-baseline.ts",
     "snapshot:check": "node --import ./scripts/snapshot/register.mjs scripts/snapshot/check-snapshot.ts",
-    "db:verify": "node scripts/db/verify.mjs"
+    "db:verify": "node scripts/db/verify.mjs",
+    "admin:dev": "next dev admin --port 3100",
+    "admin:build": "next build admin",
+    "admin:check": "node scripts/admin/check-isolation.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.469.0",

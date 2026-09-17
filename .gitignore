@@ -11,6 +11,10 @@ next-env.d.ts
 # production
 /build
 
+# admin panel (separate static app in admin/)
+/admin/.next/
+/admin/out/
+
 # misc
 .DS_Store
 *.pem
