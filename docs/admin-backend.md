@@ -190,9 +190,42 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=
 
 The connection string above is the Supabase CLI's local default, not a credential.
 
+**Never run the test files against the real project.** They create fixture auth users and try to claim the owner row.
+
 ---
 
-## 6. Not in this phase
+## 6. Applying to a real project (Phase 3F, not done yet)
+
+Migrations are applied with the Supabase CLI, once, in order:
+
+```bash
+supabase link --project-ref <project-ref>
+```
+
+```bash
+supabase db push
+```
+
+- `db:verify` also checks that every migration file is named the way the CLI requires, is ordered, and contains no destructive statement (no drop, truncate or delete).
+- The migrations are not re-runnable: the CLI records what it has applied.
+- `supabase link` stores local state in `supabase/.temp/`, which is git-ignored. The database password and access token stay with the operator.
+
+### Baseline metric import
+
+The migrations create an empty database. The published figures are loaded once, as a separate step, **before any publishing**:
+
+```bash
+npm run db:import
+```
+
+- Generates the import SQL from `snapshot/baseline.json` and verifies it offline: it applies the migrations plus the import to an in-memory database, then checks every field against the snapshot and every resolved value against the site's TypeScript source of record.
+- `npm run db:import -- --write` saves `supabase/imports/metrics_baseline.sql` for review; it is applied by hand, as the owner, and refuses to run if `public.metrics` already has rows.
+- The import records one version row and one audit entry per metric.
+- **Nothing is marked verified.** Every imported metric starts as "Not verified" until a person confirms it against its source. Private fields (source reference, attribution, internal notes) are not in the snapshot and stay empty.
+
+---
+
+## 7. Not in this phase
 
 - **Admin UI:** admin.bipinkr.in, sign-in and MFA challenge screens, metric and content editors, impact preview.
 - **Baseline import:** load `snapshot/baseline.json` and the metric registry into these tables. Imported grades use `verification_source = 'legacy_import'`.

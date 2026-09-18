@@ -138,6 +138,7 @@ UI components ──► MetricsRepository ──► MetricsGateway ──► Sup
   - `admin/config/public-env-guard.mjs` (run by `next.config.mjs`) fails the build if any `NEXT_PUBLIC_*` variable has a secret-looking name, holds an `sb_secret_` key, or holds a JWT whose role is not `anon`.
   - The runtime config check refuses these keys again.
   - Settings only shows whether each value is set, never the value.
+- **Deployable builds need their settings:** a build in CI, or with `ADMIN_BUILD_TARGET=deploy`, fails when `NEXT_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` is missing, so the "Authentication not configured" shell can never be deployed. A local build without them still works for checks and screenshots, and prints a warning. The variable names are listed in `admin/.env.example`; values go in `admin/.env.local`, which is git-ignored.
 - **Private files:** no file URLs are rendered or built. Evidence and media originals will open only through short-lived signed links requested after sign-in.
 - **No invented figures:** every backend-sourced card and table shows an explicit loading, unavailable or error state. No values, records or activity are invented.
 
@@ -167,6 +168,9 @@ npm run admin:test
   - Repository and gateway tests against every migration in an in-memory PGlite database, run as admin, non-admin, admin without MFA and anonymous. These include loading all 134 snapshot metrics and checking the admin shows the same values as the site.
   - PostgREST request tests with a stubbed `fetch`, plus the secret-key guard.
 - `npm run typecheck` and `npm run lint` cover both apps. `npm run build` still builds only the public site.
+- `npm run db:import` generates and offline-verifies the baseline metric import (see [admin-backend.md](admin-backend.md) §6). It connects to nothing.
+
+The `@supabase/supabase-js` package is installed for the auth adapter and the Data API client. Until that adapter is built (Phase 3F-3) nothing imports it, so it is not in the admin bundle.
 
 ## Not in this phase
 

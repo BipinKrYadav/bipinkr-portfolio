@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, test } from 'node:test';
 
-import { findPublicEnvSecrets } from '../config/public-env-guard.mjs';
+import {
+  assertPublicEnvForTarget,
+  findPublicEnvSecrets,
+  isDeployBuild,
+  missingRequiredPublicEnv,
+  REQUIRED_PUBLIC_ENV,
+} from '../config/public-env-guard.mjs';
 import { readAuthConfig } from '../lib/auth/config';
 import { createAuthClient } from '../lib/auth/client';
 
@@ -36,6 +42,37 @@ describe('build-time guard', () => {
       [],
     );
     assert.deepEqual(findPublicEnvSecrets({ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: fakeJwt('anon') }), []);
+  });
+});
+
+describe('deployable builds need the Supabase settings', () => {
+  const configured = {
+    NEXT_PUBLIC_SUPABASE_URL: 'https://project-ref.supabase.test',
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'publishable-key-for-tests',
+  };
+
+  test('a build is deployable in CI, or when the builder says so', () => {
+    assert.equal(isDeployBuild({}), false);
+    assert.equal(isDeployBuild({ CI: 'true' }), true);
+    assert.equal(isDeployBuild({ ADMIN_BUILD_TARGET: 'deploy' }), true);
+  });
+
+  test('a deployable build without the settings is refused', () => {
+    for (const env of [{ ADMIN_BUILD_TARGET: 'deploy' }, { CI: 'true' }, { CI: 'true', ...configured, NEXT_PUBLIC_SUPABASE_URL: ' ' }]) {
+      assert.throws(() => assertPublicEnvForTarget(env), /Refusing to build the admin panel for deployment/);
+    }
+  });
+
+  test('a local shell build is allowed, but warns that it is not for deployment', () => {
+    const warning = assertPublicEnvForTarget({});
+    assert.match(String(warning), /not set.*Not for deployment/s);
+    assert.deepEqual(missingRequiredPublicEnv({}), [...REQUIRED_PUBLIC_ENV]);
+  });
+
+  test('with both settings, every build passes with no warning', () => {
+    assert.equal(assertPublicEnvForTarget(configured), null);
+    assert.equal(assertPublicEnvForTarget({ ...configured, CI: 'true' }), null);
+    assert.deepEqual(missingRequiredPublicEnv(configured), []);
   });
 });
 

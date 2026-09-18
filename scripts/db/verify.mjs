@@ -41,9 +41,41 @@ async function runSuite(sql) {
   }
 }
 
+// 0. Migration files must be safe to apply with `supabase db push`
+const migrationFiles = readdirSync(migrationsDir).filter((name) => name.endsWith('.sql')).sort();
+// Anchored to statement starts, so "before truncate" triggers (which block
+// truncation) and "on delete cascade" clauses are not mistaken for the real thing.
+const DESTRUCTIVE = [
+  [/(?:^|;)\s*drop\s+(?:table|schema|database|type|role|view)\b/i, 'drops a database object'],
+  [/(?:^|;)\s*alter\s+table[^;]*\bdrop\s+column\b/i, 'drops a column'],
+  [/(?:^|;)\s*truncate\b/i, 'truncates a table'],
+  [/(?:^|;)\s*delete\s+from\b/i, 'deletes rows'],
+];
+
+const fileProblems = [];
+let previousVersion = '';
+for (const name of migrationFiles) {
+  if (!/^\d{14}_[a-z0-9_]+\.sql$/.test(name)) {
+    fileProblems.push(`${name}: not <14-digit version>_<name>.sql, which the Supabase CLI requires`);
+  }
+  const version = name.slice(0, 14);
+  if (version <= previousVersion) fileProblems.push(`${name}: version is not after ${previousVersion}`);
+  previousVersion = version;
+
+  // Ignore comments, so explanatory text does not trip the check.
+  const sql = readFileSync(join(migrationsDir, name), 'utf8')
+    .replace(/--[^\n]*/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const [pattern, description] of DESTRUCTIVE) {
+    if (pattern.test(sql)) fileProblems.push(`${name}: ${description}`);
+  }
+}
+if (fileProblems.length === 0) ok(`${migrationFiles.length} migration files are CLI-compatible, ordered and non-destructive`);
+else fail(`migration files:\n      ${fileProblems.join('\n      ')}`);
+
 // 1–2. Shim and migrations
 await db.exec(readFileSync(new URL('./supabase-shim.sql', import.meta.url), 'utf8'));
-const migrations = readdirSync(migrationsDir).filter((name) => name.endsWith('.sql')).sort();
+const migrations = migrationFiles;
 for (const name of migrations) {
   try {
     await db.exec(readFileSync(join(migrationsDir, name), 'utf8'));

@@ -1,4 +1,6 @@
-import { assertNoSecretsInPublicEnv } from './config/public-env-guard.mjs';
+import { PHASE_PRODUCTION_BUILD } from 'next/constants.js';
+
+import { assertNoSecretsInPublicEnv, assertPublicEnvForTarget } from './config/public-env-guard.mjs';
 
 /**
  * Admin panel — a separate static Next.js app (npm run admin:build).
@@ -7,8 +9,6 @@ import { assertNoSecretsInPublicEnv } from './config/public-env-guard.mjs';
  * layout, Tailwind scan paths and output (admin/out). The public site never
  * imports anything from this directory.
  */
-
-assertNoSecretsInPublicEnv(process.env);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -32,4 +32,17 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+/** @param {string} phase */
+export default function config(phase) {
+  // No secret may ever reach the browser bundle, in any phase.
+  assertNoSecretsInPublicEnv(process.env);
+
+  // A deployable build (CI, or ADMIN_BUILD_TARGET=deploy) must have the
+  // Supabase settings; a local shell build only warns.
+  if (phase === PHASE_PRODUCTION_BUILD) {
+    const warning = assertPublicEnvForTarget(process.env);
+    if (warning) console.warn(`\n⚠  ${warning}\n`);
+  }
+
+  return nextConfig;
+}
