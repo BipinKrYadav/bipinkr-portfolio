@@ -1,36 +1,40 @@
 'use client';
 
-import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, type ReactNode } from 'react';
 
 import { Notice } from '@admin/components/ui/Notice';
+import { consoleAccess } from '@admin/lib/auth/access';
 
 import { useAuth } from './AuthProvider';
 
 /**
- * Decides what the console may render for the current authentication state.
+ * Protects every console page. Anyone without an admin session is sent to
+ * /login/ and never sees a page body; the database refuses their requests as
+ * well, so this is convenience rather than the security boundary.
  *
- * - authenticated: the page.
- * - unconfigured: an interface preview. Nobody is signed in and no backend
- *   data exists to show, so the page structure is visible under a permanent
- *   "Authentication not configured" notice.
- * - every other state: the page is withheld.
- *
- * Screens must load backend data in client components, after this gate —
- * never in server components, whose output is baked into the static build.
+ * Screens must load backend data in client components, after this gate — never
+ * in server components, whose output is baked into the static build.
  */
 export function AuthGate({ children }: { children: ReactNode }) {
   const { state } = useAuth();
+  const router = useRouter();
+  const access = consoleAccess(state);
+  const redirectTo = access.kind === 'redirect' ? access.to : null;
 
-  switch (state.status) {
-    case 'authenticated':
+  useEffect(() => {
+    if (redirectTo) router.replace(redirectTo);
+  }, [redirectTo, router]);
+
+  switch (access.kind) {
+    case 'allow':
       return <>{children}</>;
 
-    case 'unconfigured':
+    case 'preview':
       return (
         <>
           <Notice tone="warning" title="Authentication not configured" className="mb-6">
-            {state.reason} This is an interface preview: nobody is signed in, and no metrics, documents, evidence
+            {access.reason} This is an interface preview: nobody is signed in, and no metrics, documents, evidence
             or audit data are loaded.
           </Notice>
           {children}
@@ -44,28 +48,17 @@ export function AuthGate({ children }: { children: ReactNode }) {
         </p>
       );
 
-    case 'misconfigured':
+    case 'redirect':
       return (
-        <Notice tone="danger" title="Authentication misconfigured">
-          {state.reason} The admin panel is disabled until this is fixed.
+        <Notice tone="info" title={access.title}>
+          {access.reason} Taking you to the sign-in page…
         </Notice>
       );
 
-    case 'signed_out':
-    case 'mfa_required':
+    case 'block':
       return (
-        <Notice tone="info" title={state.status === 'signed_out' ? 'Sign-in required' : 'Authenticator code required'}>
-          <Link href="/login/" className="font-semibold underline underline-offset-2">
-            Go to the sign-in page
-          </Link>
-          .
-        </Notice>
-      );
-
-    case 'not_authorised':
-      return (
-        <Notice tone="danger" title="Not authorised">
-          {state.identity.email} is signed in but is not an admin.
+        <Notice tone="danger" title={access.title}>
+          {access.reason}
         </Notice>
       );
   }

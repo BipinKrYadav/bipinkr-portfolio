@@ -5,7 +5,10 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { LogIn, Menu, X } from 'lucide-react';
 
+import { useAuth } from '@admin/components/auth/AuthProvider';
 import { AuthStatusBadge } from '@admin/components/auth/AuthStatusBadge';
+import { SignOutButton } from '@admin/components/auth/SignOutButton';
+import { hasSession } from '@admin/lib/auth/types';
 import { currentSection } from '@admin/lib/navigation';
 
 import { SidebarNav } from './SidebarNav';
@@ -16,6 +19,7 @@ import { SidebarNav } from './SidebarNav';
  */
 export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { state } = useAuth();
   const [navOpen, setNavOpen] = useState(false);
   const section = currentSection(pathname);
 
@@ -57,13 +61,16 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
           <div className="ml-auto flex items-center gap-3">
             <AuthStatusBadge />
-            <Link
-              href="/login/"
-              className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-medium text-accent underline-offset-4 hover:underline"
-            >
-              <LogIn aria-hidden="true" className="h-4 w-4" />
-              <span className="sr-only sm:not-sr-only">Sign-in page</span>
-            </Link>
+            <SignOutButton />
+            {hasSession(state) ? null : (
+              <Link
+                href="/login/"
+                className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-medium text-accent underline-offset-4 hover:underline"
+              >
+                <LogIn aria-hidden="true" className="h-4 w-4" />
+                <span className="sr-only sm:not-sr-only">Sign-in page</span>
+              </Link>
+            )}
           </div>
         </header>
 

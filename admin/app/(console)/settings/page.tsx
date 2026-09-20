@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 
+import { AuthAdapterStatus, SignedInAccount } from '@admin/components/auth/AccountSummary';
+import { AuthenticatorFactors } from '@admin/components/auth/AuthenticatorFactors';
 import { AuthStatusBadge } from '@admin/components/auth/AuthStatusBadge';
 import { PageHeader } from '@admin/components/ui/PageHeader';
 import { DefinitionList, Panel, Surface } from '@admin/components/ui/Panel';
@@ -32,9 +34,9 @@ export default function SettingsPage() {
             <DefinitionList
               items={[
                 { term: 'Session', detail: <AuthStatusBadge /> },
-                { term: 'Signed-in account', detail: <span className="text-ink-faint">No session</span> },
+                { term: 'Signed-in account', detail: <SignedInAccount /> },
                 { term: 'Role', detail: 'Owner (a single admin account)' },
-                { term: 'Authenticator factors', detail: <span className="text-ink-faint">Available after sign-in</span> },
+                { term: 'Authenticator apps', detail: <AuthenticatorFactors /> },
               ]}
             />
           </Surface>
@@ -59,7 +61,7 @@ export default function SettingsPage() {
                       </StatusBadge>
                     ),
                 },
-                { term: 'Auth adapter', detail: <StatusBadge tone="warning">Not built yet</StatusBadge> },
+                { term: 'Auth adapter', detail: <AuthAdapterStatus /> },
               ]}
             />
           </Surface>

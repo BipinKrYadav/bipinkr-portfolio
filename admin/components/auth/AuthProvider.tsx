@@ -55,12 +55,16 @@ export function useBackendConnection(): BackendConnection {
       return { status: 'unavailable', reason: 'Authentication not configured, so no backend data can be loaded.' };
     case 'misconfigured':
       return { status: 'unavailable', reason: 'Authentication is misconfigured, so no backend data can be loaded.' };
+    case 'unavailable':
+      return { status: 'unavailable', reason: `Supabase could not be reached: ${state.reason}` };
     case 'signed_out':
     case 'mfa_required':
       return { status: 'unavailable', reason: 'Sign in with your authenticator code to load data.' };
+    case 'mfa_setup_required':
+      return { status: 'unavailable', reason: 'Enrol an authenticator app: the database refuses sessions without one.' };
     case 'not_authorised':
       return { status: 'unavailable', reason: 'This account is not an admin.' };
     case 'authenticated':
-      return { status: 'unavailable', reason: 'Data loading has not been built yet.' };
+      return { status: 'unavailable', reason: 'This screen does not load data yet.' };
   }
 }

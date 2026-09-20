@@ -1,4 +1,6 @@
 import { readAuthConfig } from './config';
+import { createSupabaseAuthClient } from './supabase-auth-client';
+import { asAuthPort, getSupabaseClient } from './supabase-client';
 import type { AdminAuthClient, AuthState } from './types';
 
 type UnavailableState = Extract<AuthState, { status: 'unconfigured' | 'misconfigured' }>;
@@ -17,12 +19,22 @@ export function createUnavailableAuthClient(state: UnavailableState): AdminAuthC
     getState: async () => state,
     signInWithPassword: async () => ({ ok: false, error }),
     verifyTotp: async () => ({ ok: false, error }),
+    // Not "no factors": this build cannot check at all, and says so.
+    listTotpFactors: async () => ({ ok: false, error }),
+    startTotpEnrolment: async () => ({ ok: false, error }),
+    confirmTotpEnrolment: async () => ({ ok: false, error }),
+    cancelTotpEnrolment: async () => undefined,
     signOut: async () => undefined,
     getAccessToken: async () => null,
     subscribe: () => () => undefined,
   };
 }
 
+/**
+ * The auth client for this build: the Supabase adapter when the settings are
+ * present and safe, otherwise a client that reports exactly why it cannot
+ * sign anyone in.
+ */
 export function createAuthClient(): AdminAuthClient {
   const config = readAuthConfig();
 
@@ -36,10 +48,5 @@ export function createAuthClient(): AdminAuthClient {
     return createUnavailableAuthClient({ status: 'misconfigured', reason: config.problem });
   }
 
-  // Settings are present, but the Supabase Auth adapter is not part of this
-  // build. Report that plainly rather than pretending a session exists.
-  return createUnavailableAuthClient({
-    status: 'unconfigured',
-    reason: 'Supabase settings are present, but the Supabase Auth adapter has not been built yet.',
-  });
+  return createSupabaseAuthClient(asAuthPort(getSupabaseClient(config.url, config.publishableKey)));
 }

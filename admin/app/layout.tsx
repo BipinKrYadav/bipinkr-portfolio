@@ -36,19 +36,33 @@ export const viewport: Viewport = {
 };
 
 /**
- * Same-origin only: no third-party scripts (no GTM, GA4 or Meta Pixel can
- * load), no external connections, no framing of other origins' content.
- * 'unsafe-inline' is required by the Next.js static export bootstrap scripts.
- * The Supabase origin is added to connect-src when the auth adapter lands.
+ * Same-origin only, apart from this project's own Supabase API: no
+ * third-party scripts (no GTM, GA4 or Meta Pixel can load), no other external
+ * connections, no framing of other origins' content. 'unsafe-inline' is
+ * required by the Next.js static export bootstrap scripts.
+ *
+ * connect-src names the exact Supabase origin from the build settings — never
+ * a wildcard — so the panel can only talk to its own project.
  */
 const development = process.env.NODE_ENV === 'development';
+
+function supabaseOrigin(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (!url) return '';
+  try {
+    return ` ${new URL(url).origin}`;
+  } catch {
+    return '';
+  }
+}
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${development ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
-  `connect-src 'self'${development ? ' ws: wss:' : ''}`,
+  `connect-src 'self'${supabaseOrigin()}${development ? ' ws: wss:' : ''}`,
   "frame-src 'none'",
   "object-src 'none'",
   "base-uri 'self'",
