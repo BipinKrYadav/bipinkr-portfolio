@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 import { AuthStatusBadge } from '@admin/components/auth/AuthStatusBadge';
-import { StatCard } from '@admin/components/ui/ConnectionState';
+import { DatabaseStatusBadge, StatCard } from '@admin/components/ui/ConnectionState';
 import { DataTable } from '@admin/components/ui/DataTable';
 import { PageHeader } from '@admin/components/ui/PageHeader';
 import { DefinitionList, Panel, Surface } from '@admin/components/ui/Panel';
@@ -30,7 +30,7 @@ export default function DashboardPage() {
     <>
       <PageHeader
         title="Dashboard"
-        description="Release state, work waiting for review and recent admin activity. Every figure here comes from the backend; none is shown until it is connected."
+        description="Release state, work waiting for review and recent admin activity. Every figure here comes from the backend; none is shown until this screen reads it."
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -44,7 +44,7 @@ export default function DashboardPage() {
           <DataTable
             caption="Recent audit activity"
             columns={auditColumns}
-            emptyMessage="Audit entries appear here once the admin is connected."
+            emptyMessage="The dashboard does not read the audit log yet; entries are recorded in the database either way."
           />
         </Panel>
 
@@ -54,9 +54,10 @@ export default function DashboardPage() {
               layout="inline"
               items={[
                 { term: 'Authentication', detail: <AuthStatusBadge /> },
-                { term: 'Database', detail: <StatusBadge>Not connected</StatusBadge> },
-                { term: 'Private storage', detail: <StatusBadge>Not connected</StatusBadge> },
-                { term: 'Publishing', detail: <StatusBadge>Not available</StatusBadge> },
+                { term: 'Database', detail: <DatabaseStatusBadge /> },
+                // Not built yet, which is a different thing from unreachable.
+                { term: 'Private storage', detail: <StatusBadge>Not built yet</StatusBadge> },
+                { term: 'Publishing', detail: <StatusBadge>Not built yet</StatusBadge> },
               ]}
             />
           </Surface>

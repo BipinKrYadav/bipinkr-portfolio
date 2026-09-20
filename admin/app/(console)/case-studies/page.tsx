@@ -36,7 +36,7 @@ const rows: readonly Row[] = caseStudyCatalog.map((study) => ({
       {study.status === 'published' ? 'Published' : study.status}
     </StatusBadge>,
     <span key="metrics" className="text-xs text-ink-faint">
-      Not connected
+      Not read yet
     </span>,
   ],
 }));

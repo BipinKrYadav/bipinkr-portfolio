@@ -59,7 +59,7 @@ export default function ReleasesPage() {
           <DataTable
             caption="Release history"
             columns={historyColumns}
-            emptyMessage="Releases appear here once the admin is connected."
+            emptyMessage="This screen does not read the release history yet."
           />
         </Panel>
       </div>

@@ -92,7 +92,7 @@ const rows: readonly Row[] = sections.map((section) => ({
       <StatusBadge key="status">Not in snapshot</StatusBadge>
     ),
     <span key="draft" className="text-xs text-ink-faint">
-      Not connected
+      Not read yet
     </span>,
   ],
 }));
@@ -102,7 +102,7 @@ export default function ContentPage() {
     <>
       <PageHeader
         title="Documents / Content"
-        description="The page documents the public site is built from. Read-only: document editing, drafts and revisions arrive with the backend connection."
+        description="The page documents the public site is built from. Read-only: document editing, drafts and revisions are not built yet."
         meta={<StatusBadge>Read-only</StatusBadge>}
       />
 

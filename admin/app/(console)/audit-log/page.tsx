@@ -36,7 +36,7 @@ export default function AuditLogPage() {
       <DataTable
         caption="Audit log"
         columns={auditColumns}
-        emptyMessage="Audit entries appear here once the admin is connected. No entries are ever invented for display."
+        emptyMessage="This screen does not read the audit log yet; entries are recorded in the database either way. No entries are ever invented for display."
       />
     </>
   );

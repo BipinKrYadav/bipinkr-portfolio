@@ -65,7 +65,7 @@ export default function MediaEvidencePage() {
           <DataTable
             caption="Media assets"
             columns={mediaColumns}
-            emptyMessage="Media metadata appears here once the admin is connected."
+            emptyMessage="This screen does not read media metadata yet."
           />
         </Panel>
 
@@ -73,7 +73,7 @@ export default function MediaEvidencePage() {
           <DataTable
             caption="Evidence files"
             columns={evidenceColumns}
-            emptyMessage="Evidence metadata appears here once the admin is connected."
+            emptyMessage="This screen does not read evidence metadata yet."
           />
         </Panel>
 
@@ -81,7 +81,7 @@ export default function MediaEvidencePage() {
           <DataTable
             caption="Linked evidence"
             columns={linkColumns}
-            emptyMessage="Metric–evidence links appear here once the admin is connected."
+            emptyMessage="This screen does not read metric–evidence links yet."
           />
         </Panel>
       </div>
