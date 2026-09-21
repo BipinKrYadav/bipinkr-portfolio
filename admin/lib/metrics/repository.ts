@@ -12,6 +12,7 @@ import { fail, ok, toDataError, type DataResult } from './errors';
 import { validateFormula } from './formula';
 import type { MetricsGateway } from './gateway';
 import type { EvidenceLinkRow, EvidenceStatus, MetricRow, MetricVerificationRow } from './model';
+import { snapshotReferencesFor, type SnapshotReferenceIndex } from './snapshot-references';
 
 export interface MetricsOverview {
   metrics: MetricRow[];
@@ -48,9 +49,12 @@ async function attempt<T>(operation: () => Promise<T>): Promise<DataResult<T>> {
 
 /**
  * Metric operations for the admin UI. Checks here only give earlier, clearer
- * feedback; the database enforces every rule again and has the final word.
+ * feedback; the database enforces every rule again and has the final word —
+ * except for uses in the published snapshot, which the database does not
+ * record yet. `snapshotReferences` is required so that check is never
+ * dropped by accident; pass the build-time index from lib/snapshot-catalog.ts.
  */
-export function createMetricsRepository(gateway: MetricsGateway): MetricsRepository {
+export function createMetricsRepository(gateway: MetricsGateway, snapshotReferences: SnapshotReferenceIndex): MetricsRepository {
   return {
     listMetrics: () =>
       attempt(async () => {
@@ -75,7 +79,13 @@ export function createMetricsRepository(gateway: MetricsGateway): MetricsReposit
           verification,
           versions: versionEntries(versions),
           evidence,
-          blockers: archiveBlockers(metric, metrics, documentReferences, linkedPhrases),
+          blockers: archiveBlockers(
+            metric,
+            metrics,
+            documentReferences,
+            linkedPhrases,
+            snapshotReferencesFor(snapshotReferences, metric.metric_key),
+          ),
         };
       });
       if (!loaded.ok) return loaded;

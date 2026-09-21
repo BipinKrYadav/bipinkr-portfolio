@@ -11,6 +11,7 @@ import {
   type MetricVersionRow,
   type VerificationState,
 } from './model';
+import type { SnapshotDocumentReference, SnapshotPhraseReference, SnapshotReferences } from './snapshot-references';
 
 // ---------------------------------------------------------------------------
 // Drafts and patches
@@ -157,6 +158,9 @@ export interface ArchiveBlockers {
   formulas: string[];
   documentReferences: { documentType: string; slug: string; fieldPath: string }[];
   linkedPhrases: { location: string; phrase: string }[];
+  /** Uses in the published snapshot the database does not record yet. Checked by the admin only. */
+  snapshotDocuments: SnapshotDocumentReference[];
+  snapshotLinkedPhrases: SnapshotPhraseReference[];
 }
 
 export function archiveBlockers(
@@ -164,22 +168,45 @@ export function archiveBlockers(
   metrics: Iterable<FormulaContextMetric>,
   documentReferences: readonly DocumentReferenceRow[],
   linkedPhrases: readonly LinkedPhraseRow[],
+  snapshot: SnapshotReferences = { documents: [], linkedPhrases: [] },
 ): ArchiveBlockers {
+  const documents = documentReferences.map((ref) => ({
+    documentType: ref.documents?.doc_type ?? 'document',
+    slug: ref.documents?.slug ?? ref.document_id,
+    fieldPath: ref.field_path,
+  }));
+  const phrases = linkedPhrases.map((phrase) => ({ location: phrase.location, phrase: phrase.phrase }));
+
+  // Once the database holds the snapshot's references, the same use shows up
+  // in both lists; report it once, from the database.
+  const documentKey = (ref: SnapshotDocumentReference) => JSON.stringify([ref.documentType, ref.slug]);
+  const phraseKey = (phrase: SnapshotPhraseReference) => JSON.stringify([phrase.location, phrase.phrase]);
+  const recordedDocument = new Set(documents.map(documentKey));
+  const recordedPhrase = new Set(phrases.map(phraseKey));
+
   return {
     formulas: dependentMetrics(metric.metric_key, metrics),
-    documentReferences: documentReferences.map((ref) => ({
-      documentType: ref.documents?.doc_type ?? 'document',
-      slug: ref.documents?.slug ?? ref.document_id,
-      fieldPath: ref.field_path,
-    })),
-    linkedPhrases: linkedPhrases.map((phrase) => ({ location: phrase.location, phrase: phrase.phrase })),
+    documentReferences: documents,
+    linkedPhrases: phrases,
+    snapshotDocuments: snapshot.documents.filter((ref) => !recordedDocument.has(documentKey(ref))),
+    snapshotLinkedPhrases: snapshot.linkedPhrases.filter((phrase) => !recordedPhrase.has(phraseKey(phrase))),
   };
 }
+
+export const hasSnapshotBlockers = (blockers: ArchiveBlockers): boolean =>
+  blockers.snapshotDocuments.length > 0 || blockers.snapshotLinkedPhrases.length > 0;
+
+export const hasDatabaseBlockers = (blockers: ArchiveBlockers): boolean =>
+  blockers.formulas.length > 0 || blockers.documentReferences.length > 0 || blockers.linkedPhrases.length > 0;
 
 export function archiveBlockerMessages(blockers: ArchiveBlockers): string[] {
   return [
     ...blockers.formulas.map((key) => `Used in the formula of ${key}.`),
     ...blockers.documentReferences.map((ref) => `Referenced by ${ref.documentType} "${ref.slug}" at ${ref.fieldPath}.`),
     ...blockers.linkedPhrases.map((phrase) => `Restated by the linked phrase "${phrase.phrase}" (${phrase.location}).`),
+    ...blockers.snapshotDocuments.map((ref) => `Used by ${ref.documentType} "${ref.slug}" in the published snapshot.`),
+    ...blockers.snapshotLinkedPhrases.map(
+      (phrase) => `Restated in the published snapshot by the linked phrase "${phrase.phrase}" (${phrase.location}).`,
+    ),
   ];
 }

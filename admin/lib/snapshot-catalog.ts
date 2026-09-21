@@ -1,5 +1,7 @@
 import baseline from '../../snapshot/baseline.json';
 
+import { buildSnapshotReferenceIndex, type SnapshotReferenceIndex } from './metrics/snapshot-references';
+
 /**
  * Read-only catalogue of the documents the public site is currently built
  * from (snapshot/baseline.json). Only identifiers, names and status are
@@ -48,3 +50,10 @@ export const caseStudyCatalog: readonly CaseStudyEntry[] = Object.values(baselin
   .sort((a, b) => a.order - b.order);
 
 export const snapshotSource = 'snapshot/baseline.json';
+
+/**
+ * Metric key → the published documents and linked phrases that use it.
+ * Built here, at build time, so only this small map reaches the browser
+ * (as a prop), never the snapshot's page copy.
+ */
+export const publishedMetricReferences: SnapshotReferenceIndex = buildSnapshotReferenceIndex(baseline);

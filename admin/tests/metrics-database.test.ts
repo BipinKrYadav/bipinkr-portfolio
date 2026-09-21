@@ -23,6 +23,7 @@ import {
   type MetricRow,
 } from '../lib/metrics/model';
 import { createMetricsRepository, type MetricsRepository } from '../lib/metrics/repository';
+import type { SnapshotReferenceIndex } from '../lib/metrics/snapshot-references';
 import { resolveValues } from '../lib/metrics/values';
 
 import {
@@ -49,6 +50,10 @@ let db: PGlite;
 let gateway: MetricsGateway;
 let repository: MetricsRepository;
 
+// The fixtures are not in the published snapshot, so these tests run with an
+// empty snapshot index; the snapshot guard has its own tests below.
+const NO_SNAPSHOT_REFERENCES: SnapshotReferenceIndex = {};
+
 const FIXTURES = [
   { metric_key: 'fixture.lead.spend', kind: 'raw', value: 300, evidence_status: 'documented' },
   { metric_key: 'fixture.lead.leads', kind: 'raw', value: 4, evidence_status: 'verified' },
@@ -62,7 +67,7 @@ before(async () => {
   db = await createDatabase();
   await insertMetrics(db, FIXTURES);
   gateway = createPgliteGateway(db, ADMIN_SESSION);
-  repository = createMetricsRepository(gateway);
+  repository = createMetricsRepository(gateway, NO_SNAPSHOT_REFERENCES);
 });
 
 after(async () => {
@@ -350,6 +355,31 @@ describe('archiving', () => {
     assert.equal(after.metric.archived_at, after.versions[0].changedAt, 'archive time is the database transaction time');
     assert.equal(await errorCode(runAs(db, ADMIN_SESSION, (tx) => tx.query('delete from public.metrics where id = $1', [detail.metric.id]))), '42501');
   });
+
+  test('a metric used by the published snapshot is not archived by the admin, though the database alone would allow it', async () => {
+    await insertMetrics(db, [{ metric_key: 'fixture.snapshot.used', kind: 'raw', value: 5 }]);
+    const guarded = createMetricsRepository(gateway, {
+      'fixture.snapshot.used': {
+        documents: [{ documentType: 'case_study', slug: 'meta-lead-generation' }],
+        linkedPhrases: [{ location: 'home › hero', phrase: 'five campaigns' }],
+      },
+    });
+
+    const loaded = await guarded.getMetricDetail('fixture.snapshot.used');
+    assert.ok(loaded.ok, loaded.ok ? '' : loaded.error.message);
+    const result = await guarded.archiveMetric(loaded.data, 'Retire it');
+    assert.equal(result.ok ? null : result.error.kind, 'validation');
+    assert.deepEqual(result.ok ? [] : result.error.details, [
+      'Used by case_study "meta-lead-generation" in the published snapshot.',
+      'Restated in the published snapshot by the linked phrase "five campaigns" (home › hero).',
+    ]);
+    assert.equal((await load('fixture.snapshot.used')).archived_at, null, 'the refusal happens before any request');
+
+    // Nothing in the database records snapshot references yet (Phase 4.3), so
+    // without the index the same archive goes through. That gap is why the guard exists.
+    const unguarded = await detailOf('fixture.snapshot.used');
+    assert.ok((await repository.archiveMetric(unguarded, 'Retire it')).ok);
+  });
 });
 
 describe('archive timestamp', () => {
@@ -478,7 +508,7 @@ describe('dependency-aware verification', () => {
 
 describe('access control', () => {
   test('a signed-in non-admin sees no metrics and cannot change any', async () => {
-    const outsider = createMetricsRepository(createPgliteGateway(db, NON_ADMIN_SESSION));
+    const outsider = createMetricsRepository(createPgliteGateway(db, NON_ADMIN_SESSION), NO_SNAPSHOT_REFERENCES);
     const list = await outsider.listMetrics();
     assert.ok(list.ok);
     assert.equal(list.data.metrics.length, 0);
@@ -499,7 +529,7 @@ describe('access control', () => {
   });
 
   test('an unauthenticated caller is denied outright', async () => {
-    const anonymous = createMetricsRepository(createPgliteGateway(db, ANON_SESSION));
+    const anonymous = createMetricsRepository(createPgliteGateway(db, ANON_SESSION), NO_SNAPSHOT_REFERENCES);
     const list = await anonymous.listMetrics();
     assert.equal(list.ok ? null : list.error.kind, 'permission_denied');
     const metric = await load('fixture.lead.spare');

@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, test } from 'node:test';
 
 import {
@@ -6,10 +8,17 @@ import {
   archiveBlockers,
   diffMetric,
   draftFromMetric,
+  hasDatabaseBlockers,
+  hasSnapshotBlockers,
   requiresChangeReason,
   verificationStateOf,
   versionEntries,
 } from '../lib/metrics/changes';
+import {
+  buildSnapshotReferenceIndex,
+  snapshotReferencesFor,
+  type SnapshotReferenceSource,
+} from '../lib/metrics/snapshot-references';
 import { GatewayError, toDataError } from '../lib/metrics/errors';
 import { describeFormula, parseFormula, validateFormula, type FormulaContextMetric } from '../lib/metrics/formula';
 import { EDITABLE_METRIC_FIELDS, type MetricRow, type MetricVersionRow } from '../lib/metrics/model';
@@ -188,6 +197,116 @@ describe('archive blockers', () => {
       'Referenced by case_study "meta-lead-generation" at heroMetrics.0.',
       'Restated by the linked phrase "roughly a third" (home › hero).',
     ]);
+    // Without a snapshot argument nothing is added: existing behaviour is unchanged.
+    assert.deepEqual(blockers.snapshotDocuments, []);
+    assert.deepEqual(blockers.snapshotLinkedPhrases, []);
+    assert.equal(hasSnapshotBlockers(blockers), false);
+    assert.equal(hasDatabaseBlockers(blockers), true);
+  });
+
+  test('a metric used by the published snapshot is blocked, and the message says where', () => {
+    const blockers = archiveBlockers({ metric_key: 'f.a.leads' }, [], [], [], {
+      documents: [{ documentType: 'case_study', slug: 'meta-lead-generation' }],
+      linkedPhrases: [{ location: 'home › hero', phrase: 'From ₹106.66 to ₹32.29 CPL' }],
+    });
+    assert.deepEqual(archiveBlockerMessages(blockers), [
+      'Used by case_study "meta-lead-generation" in the published snapshot.',
+      'Restated in the published snapshot by the linked phrase "From ₹106.66 to ₹32.29 CPL" (home › hero).',
+    ]);
+    assert.equal(hasSnapshotBlockers(blockers), true);
+    assert.equal(hasDatabaseBlockers(blockers), false);
+  });
+
+  test('a metric the snapshot does not use gets no snapshot blocker', () => {
+    const index = buildSnapshotReferenceIndex(SNAPSHOT_FIXTURE);
+    const blockers = archiveBlockers({ metric_key: 'f.a.unused' }, [], [], [], snapshotReferencesFor(index, 'f.a.unused'));
+    assert.deepEqual(archiveBlockerMessages(blockers), []);
+    assert.equal(hasSnapshotBlockers(blockers), false);
+  });
+
+  test('the formula blocker still applies alongside snapshot blockers', () => {
+    const blockers = archiveBlockers(
+      { metric_key: 'f.a.spend' },
+      [{ metric_key: 'f.a.cpl', formula: { fn: 'ratio', numerator: 'f.a.spend', denominator: 'f.a.leads' }, archived_at: null }],
+      [],
+      [],
+      { documents: [{ documentType: 'homepage', slug: 'home' }], linkedPhrases: [] },
+    );
+    assert.deepEqual(archiveBlockerMessages(blockers), [
+      'Used in the formula of f.a.cpl.',
+      'Used by homepage "home" in the published snapshot.',
+    ]);
+    assert.equal(hasDatabaseBlockers(blockers), true);
+    assert.equal(hasSnapshotBlockers(blockers), true);
+  });
+
+  test('a use recorded in the database is not reported a second time from the snapshot', () => {
+    const blockers = archiveBlockers(
+      { metric_key: 'f.a.leads' },
+      [],
+      [{ document_id: 'd', field_path: 'heroMetrics.0', documents: { doc_type: 'case_study', slug: 'meta-lead-generation' } }],
+      [{ id: 'p', location: 'home › hero', phrase: 'roughly a third', reviewed_at: null }],
+      {
+        documents: [
+          { documentType: 'case_study', slug: 'meta-lead-generation' },
+          { documentType: 'homepage', slug: 'home' },
+        ],
+        linkedPhrases: [
+          { location: 'home › hero', phrase: 'roughly a third' },
+          { location: 'about › intro', phrase: 'over 60 accounts' },
+        ],
+      },
+    );
+    assert.deepEqual(blockers.snapshotDocuments, [{ documentType: 'homepage', slug: 'home' }]);
+    assert.deepEqual(blockers.snapshotLinkedPhrases, [{ location: 'about › intro', phrase: 'over 60 accounts' }]);
+  });
+});
+
+const SNAPSHOT_FIXTURE: SnapshotReferenceSource = {
+  documents: {
+    homepage: {
+      type: 'homepage',
+      slug: 'home',
+      content: {
+        hero: 'Managed {{metric:f.a.spend|inr_compact}} and {{metric:f.a.spend}} again',
+        grade: '{{evidence:f.a.grade}}',
+        chart: [{ value: { $metricValue: 'f.a.chart' } }],
+      },
+    },
+    caseStudies: {
+      'meta-lead-generation': {
+        type: 'case_study',
+        slug: 'meta-lead-generation',
+        content: { comparison: { $pair: { first: 'f.a.before', second: 'f.a.after' }, label: 'CPL' } },
+      },
+    },
+  },
+  linkedPhrases: [{ location: 'home › title', phrase: 'Roughly a third', metricIds: ['f.a.spend', 'f.a.spend', 'f.a.before'] }],
+};
+
+describe('published snapshot references', () => {
+  test('every reference form the site resolves is recognised, once per document', () => {
+    const index = buildSnapshotReferenceIndex(SNAPSHOT_FIXTURE);
+    assert.deepEqual(Object.keys(index).sort(), ['f.a.after', 'f.a.before', 'f.a.chart', 'f.a.grade', 'f.a.spend']);
+    assert.deepEqual(index['f.a.spend'], {
+      documents: [{ documentType: 'homepage', slug: 'home' }],
+      linkedPhrases: [{ location: 'home › title', phrase: 'Roughly a third' }],
+    });
+    assert.deepEqual(index['f.a.after'].documents, [{ documentType: 'case_study', slug: 'meta-lead-generation' }]);
+    assert.deepEqual(snapshotReferencesFor(index, 'f.a.unused'), { documents: [], linkedPhrases: [] });
+  });
+
+  test('the real published snapshot is indexed: a headline figure is used by its case study and a linked phrase', () => {
+    const snapshot = JSON.parse(readFileSync(join(process.cwd(), 'snapshot/baseline.json'), 'utf8')) as SnapshotReferenceSource & {
+      metrics: { id: string }[];
+    };
+    const index = buildSnapshotReferenceIndex(snapshot);
+    const cpl = snapshotReferencesFor(index, 're.cohort_2025.cpl');
+    assert.ok(cpl.documents.some((ref) => ref.documentType === 'case_study' && ref.slug === 'meta-lead-generation'));
+    assert.ok(cpl.linkedPhrases.some((phrase) => phrase.phrase === 'From ₹106.66 to ₹32.29 CPL'));
+    // Every indexed key is a metric the snapshot defines.
+    const defined = new Set(snapshot.metrics.map((entry) => entry.id));
+    assert.deepEqual(Object.keys(index).filter((key) => !defined.has(key)), []);
   });
 });
 

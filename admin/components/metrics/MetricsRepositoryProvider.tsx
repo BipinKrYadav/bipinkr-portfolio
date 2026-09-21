@@ -6,6 +6,7 @@ import { useAuth, useBackendConnection } from '@admin/components/auth/AuthProvid
 import { readAuthConfig } from '@admin/lib/auth/config';
 import { createPostgrestGateway } from '@admin/lib/metrics/postgrest-gateway';
 import { createMetricsRepository, type MetricsRepository } from '@admin/lib/metrics/repository';
+import type { SnapshotReferenceIndex } from '@admin/lib/metrics/snapshot-references';
 
 export type RepositoryState =
   | { status: 'loading' }
@@ -19,7 +20,14 @@ const RepositoryContext = createContext<RepositoryState | null>(null);
  * session with valid Supabase settings; in every other state the screens get
  * `unavailable` with the reason, and no request is ever made.
  */
-export function MetricsRepositoryProvider({ children }: { children: ReactNode }) {
+export function MetricsRepositoryProvider({
+  children,
+  snapshotReferences,
+}: {
+  children: ReactNode;
+  /** Build-time index of metric uses in the published snapshot (lib/snapshot-catalog.ts). */
+  snapshotReferences: SnapshotReferenceIndex;
+}) {
   const { state: auth, client } = useAuth();
   const connection = useBackendConnection();
   const unavailableReason = connection.status === 'unavailable' ? connection.reason : null;
@@ -39,8 +47,8 @@ export function MetricsRepositoryProvider({ children }: { children: ReactNode })
       publishableKey: config.publishableKey,
       getAccessToken: () => client.getAccessToken(),
     });
-    return { status: 'ready', repository: createMetricsRepository(gateway) };
-  }, [auth.status, client, unavailableReason]);
+    return { status: 'ready', repository: createMetricsRepository(gateway, snapshotReferences) };
+  }, [auth.status, client, unavailableReason, snapshotReferences]);
 
   return <RepositoryContext.Provider value={value}>{children}</RepositoryContext.Provider>;
 }

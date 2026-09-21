@@ -4,12 +4,16 @@ import { useState, type FormEvent } from 'react';
 
 import { buttonClass, Field, inputClass } from '@admin/components/ui/Field';
 import { formatDateTime } from '@admin/lib/format-date';
-import { archiveBlockerMessages } from '@admin/lib/metrics/changes';
+import { archiveBlockerMessages, hasDatabaseBlockers, hasSnapshotBlockers } from '@admin/lib/metrics/changes';
 import type { DataResult } from '@admin/lib/metrics/errors';
 import type { MetricRow } from '@admin/lib/metrics/model';
 import type { MetricDetail } from '@admin/lib/metrics/repository';
 
 import { ErrorMessage } from './StateMessage';
+
+// A literal, not an import of lib/snapshot-catalog.ts: that module reads the
+// whole snapshot and must stay out of client components.
+const snapshotSourceLabel = 'snapshot/baseline.json';
 
 /** Archiving only; metrics are never deleted. The database re-checks every blocker. */
 export function ArchivePanel({
@@ -49,7 +53,15 @@ export function ArchivePanel({
             <li key={blocker}>{blocker}</li>
           ))}
         </ul>
-        <p className="text-xs text-ink-faint">Remove these references first. The database enforces the same rule.</p>
+        {hasDatabaseBlockers(detail.blockers) ? (
+          <p className="text-xs text-ink-faint">Remove these references first. The database enforces the same rule.</p>
+        ) : null}
+        {hasSnapshotBlockers(detail.blockers) ? (
+          <p className="text-xs text-ink-faint">
+            The published snapshot ({snapshotSourceLabel}) still uses this metric. The admin checks this; the database does
+            not record snapshot references yet. Archiving cannot be undone.
+          </p>
+        ) : null}
       </div>
     );
   }
