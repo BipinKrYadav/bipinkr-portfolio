@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 
+import { DocumentsList } from '@admin/components/content/DocumentsList';
 import { DataTable, type Row } from '@admin/components/ui/DataTable';
 import { Notice } from '@admin/components/ui/Notice';
 import { PageHeader } from '@admin/components/ui/PageHeader';
@@ -106,14 +107,22 @@ export default function ContentPage() {
         meta={<StatusBadge>Read-only</StatusBadge>}
       />
 
-      <Notice tone="info" title="Source of this list" className="mb-6">
-        Document names and status are read from <code>{snapshotSource}</code> when the admin is built. No page copy
-        or figures are shown or changed here.
-      </Notice>
+      <div className="space-y-8">
+        <Panel
+          title="Documents in the database"
+          description="Read after sign-in with your session. Metadata and metric-reference counts only; page content is not loaded."
+        >
+          <DocumentsList />
+        </Panel>
 
-      <Panel title="Sections">
-        <DataTable caption="Content sections" columns={columns} rows={rows} emptyMessage="" />
-      </Panel>
+        <Panel title="Sections">
+          <Notice tone="info" title="Source of this list" className="mb-4">
+            Document names and status are read from <code>{snapshotSource}</code> when the admin is built. No page copy
+            or figures are shown or changed here.
+          </Notice>
+          <DataTable caption="Content sections" columns={columns} rows={rows} emptyMessage="" />
+        </Panel>
+      </div>
     </>
   );
 }
