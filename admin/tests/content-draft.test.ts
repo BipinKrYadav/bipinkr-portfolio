@@ -7,6 +7,9 @@ import { validateDocumentDraft } from '../lib/content/draft';
 
 const snapshot = loadSnapshot();
 const homepage = snapshot.documents.homepage.content;
+// The homepage carries no protected tokens at all, so token tests use a
+// document that has every kind: metric, evidence, client-label, $metricValue, $pair.
+const tokenised = snapshot.documents.caseStudies['meta-lead-generation'].content;
 
 function clone<T>(value: T): T {
   return structuredClone(value);
@@ -63,9 +66,9 @@ describe('document draft validation', () => {
   });
 
   test('rejects a metric-token change even when the resulting token is valid', () => {
-    const draft = clone(homepage);
+    const draft = clone(tokenised);
     assert.equal(replaceFirstMetricToken(draft), true);
-    const result = validateDocumentDraft('homepage', 'home', draft, homepage);
+    const result = validateDocumentDraft('case_study', 'meta-lead-generation', draft, tokenised);
     assert.equal(result.ok, false);
     assert.match(result.ok ? '' : result.message, /references cannot be changed/i);
   });
@@ -89,9 +92,10 @@ describe('document draft validation', () => {
     };
 
     const changed = { value: false };
-    const changedDraft = replace(clone(homepage), changed);
+    const changedDraft = replace(clone(tokenised), changed);
     assert.equal(changed.value, true);
-    const result = validateDocumentDraft('homepage', 'home', changedDraft, homepage);
+    const result = validateDocumentDraft('case_study', 'meta-lead-generation', changedDraft, tokenised);
     assert.equal(result.ok, false);
+    assert.match(result.ok ? '' : result.message, /references cannot be changed/i);
   });
 });

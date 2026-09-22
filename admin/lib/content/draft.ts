@@ -30,28 +30,40 @@ const schemaFor = (docType: DocumentType, slug: string) => {
 
 
 
-function collectProtectedTokens(value: unknown, into: string[] = []): string[] {
+type PathSegment = string | number;
+
+/**
+ * Every protected token together with the structural path of the field that
+ * holds it: object keys and array indices from the document root. A string's
+ * tokens sit at the string's own path; a $metricValue or $pair token sits at
+ * the object that carries it. Each entry is JSON of [path, token], so paths
+ * cannot collide however keys are spelled. Compared as a sorted multiset:
+ * token order within one field is free, but a token may not move to another
+ * field, which would leave document_metric_refs.field_path stale.
+ */
+function collectProtectedTokens(value: unknown, path: readonly PathSegment[] = [], into: string[] = []): string[] {
+  const record = (token: string) => into.push(JSON.stringify([path, token]));
   if (typeof value === 'string') {
-    for (const match of value.match(/\{\{[^{}]*\}\}/g) ?? []) into.push(match);
+    for (const match of value.match(/\{\{[^{}]*\}\}/g) ?? []) record(match);
     return into;
   }
   if (Array.isArray(value)) {
-    value.forEach((item) => collectProtectedTokens(item, into));
+    value.forEach((item, index) => collectProtectedTokens(item, [...path, index], into));
     return into;
   }
   if (value && typeof value === 'object') {
-    const record = value as Record<string, unknown>;
-    if (typeof record.$metricValue === 'string') into.push('$metricValue:' + record.$metricValue);
+    const object = value as Record<string, unknown>;
+    if (typeof object.$metricValue === 'string') record('$metricValue:' + object.$metricValue);
     if (
-      record.$pair &&
-      typeof record.$pair === 'object' &&
-      typeof (record.$pair as Record<string, unknown>).first === 'string' &&
-      typeof (record.$pair as Record<string, unknown>).second === 'string'
+      object.$pair &&
+      typeof object.$pair === 'object' &&
+      typeof (object.$pair as Record<string, unknown>).first === 'string' &&
+      typeof (object.$pair as Record<string, unknown>).second === 'string'
     ) {
-      const pair = record.$pair as Record<string, unknown>;
-      into.push('$pair:' + pair.first + ':' + pair.second);
+      const pair = object.$pair as Record<string, unknown>;
+      record('$pair:' + pair.first + ':' + pair.second);
     }
-    Object.values(record).forEach((item) => collectProtectedTokens(item, into));
+    Object.entries(object).forEach(([key, item]) => collectProtectedTokens(item, [...path, key], into));
   }
   return into;
 }
@@ -91,7 +103,8 @@ export function validateDocumentDraft(
   if (JSON.stringify(originalRefs) !== JSON.stringify(draftRefs) || JSON.stringify(originalTokens) !== JSON.stringify(draftTokens)) {
     return {
       ok: false,
-      message: 'Metric, evidence or client-label references cannot be changed in Phase 5A. Edit only the editorial copy.',
+      message:
+        'Metric, evidence or client-label references cannot be changed or moved to another field in Phase 5A. Edit only the editorial copy.',
     };
   }
 

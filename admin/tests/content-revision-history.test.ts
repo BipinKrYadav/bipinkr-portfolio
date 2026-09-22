@@ -185,6 +185,12 @@ describe('revision history in the repository', () => {
     const { result } = await detailOf(detailRoutes([revision(2), revision(1)]));
     assert.ok(result.ok);
     for (const row of result.data.revisions) assert.ok(!('content' in row));
-    assert.doesNotMatch(JSON.stringify(result.data), /"content"|"draft"|\{\{label:|Real Client|revision copy|draft copy/);
+
+    // Phase 5A: the admin editor receives the current draft, and only the draft.
+    const { draft, ...rest } = result.data;
+    assert.deepEqual(draft, doc('rev-2').draft);
+    assert.doesNotMatch(JSON.stringify(rest), /"content"|"draft"|\{\{label:|Real Client|revision copy|draft copy/);
+    // Revision content stays out of the whole model, the draft included.
+    assert.doesNotMatch(JSON.stringify(result.data), /"content"|revision copy/);
   });
 });

@@ -231,11 +231,12 @@ describe('Phase 5A draft editing', () => {
   });
 
   test('a stale draft save is rejected as a conflict', async () => {
-    const first = await detailAs(ADMIN_SESSION, 'services', 'services');
+    // Uses a document no other test in this file touches, so its extra revision cannot leak into them.
+    const first = await detailAs(ADMIN_SESSION, 'contact', 'contact');
     assert.ok(first.ok);
     const original = first.data.draft as Record<string, any>;
     const nextDraft = structuredClone(original);
-    nextDraft.services[0].title = original.services[0].title + ' · first';
+    nextDraft.contactContent.h1 = original.contactContent.h1 + ' · first';
 
     const firstSave = await createContentRepository(createPgliteContentGateway(db, ADMIN_SESSION)).saveDocumentDraft(
       first.data,
@@ -245,7 +246,7 @@ describe('Phase 5A draft editing', () => {
     assert.ok(firstSave.ok);
 
     const staleDraft = structuredClone(original);
-    staleDraft.services[0].title = original.services[0].title + ' · stale';
+    staleDraft.contactContent.h1 = original.contactContent.h1 + ' · stale';
     const staleSave = await createContentRepository(createPgliteContentGateway(db, ADMIN_SESSION)).saveDocumentDraft(
       first.data,
       staleDraft,
@@ -253,6 +254,16 @@ describe('Phase 5A draft editing', () => {
     );
     assert.equal(staleSave.ok ? null : staleSave.error.kind, 'validation');
     assert.match(staleSave.ok ? '' : staleSave.error.message, /changed after you opened it/i);
+
+    // The conflict leaves the first save's draft in place and adds no revision.
+    const after = await detailAs(ADMIN_SESSION, 'contact', 'contact');
+    assert.ok(after.ok);
+    assert.equal((after.data.draft as any).contactContent.h1, nextDraft.contactContent.h1);
+    assert.deepEqual(after.data.revisions.map((revision) => [revision.revision_number, revision.change_summary]), [
+      [2, 'First test save'],
+      [1, 'Baseline import from snapshot/baseline.json'],
+    ]);
+    assert.equal(after.data.publishedRevision?.revision_number, 1, 'saving a draft never publishes');
   });
 });
 
@@ -282,7 +293,17 @@ describe('detail after in-memory changes', () => {
     assert.equal(publishedRevision?.revision_number, 1);
     assert.equal(publishedRevision?.id, document.published_revision_id);
     assert.equal(publishedRevisionMissing, false);
-    assert.doesNotMatch(JSON.stringify(result.data), /"content"|"draft"|\{\{(label|metric|evidence):/);
+
+    // Phase 5A: the admin editor receives the current draft; revisions stay metadata only.
+    for (const revision of revisions) {
+      assert.deepEqual(Object.keys(revision).sort(), [
+        'change_summary', 'created_at', 'created_by', 'document_id', 'id', 'release_id', 'revision_number', 'schema_version',
+      ]);
+    }
+    const { draft, ...rest } = result.data;
+    const stored = await db.query<{ draft: unknown }>("select draft from public.documents where doc_type = 'services' and slug = 'services'");
+    assert.deepEqual(draft, stored.rows[0].draft);
+    assert.doesNotMatch(JSON.stringify(rest), /"content"|"draft"|\{\{(label|metric|evidence):/);
   });
 
   test('a draft edited after publishing is reported as different from the published revision', async () => {

@@ -118,7 +118,9 @@ export function DocumentDraftEditor({
 
   function update(path: readonly (string | number)[], event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setResult(null);
-    setDraft((current) => setAtPath(current, path, event.target.value));
+    // Typed explicitly: with useState<unknown>, SetStateAction<unknown> collapses to `unknown`,
+    // which gives the updater no contextual parameter type.
+    setDraft((current: unknown) => setAtPath(current, path, event.target.value));
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
