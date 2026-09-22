@@ -110,7 +110,7 @@ export function DocumentDetailView() {
   }
 
   const detail = detailState.detail;
-  const { document, draft, publishedRevision, publishedRevisionMissing, revisions, draftMatchesPublished, hasDraft, references, linkedPhrases } =
+  const { document, publishedRevision, publishedRevisionMissing, revisions, draftMatchesPublished, hasDraft, references, linkedPhrases } =
     detail;
 
   return (
@@ -128,7 +128,7 @@ export function DocumentDetailView() {
         <h1 className="mt-2 text-xl font-semibold tracking-tight">{document.slug}</h1>
         <div className="mt-3 flex flex-wrap gap-2">
           <StatusBadge tone={statusTone[document.status]}>{documentStatusLabels[document.status]}</StatusBadge>
-          <StatusBadge tone="accent">Draft editing</StatusBadge>
+          <StatusBadge tone="accent">Draft editing</StatusBadge>{dirty ? <StatusBadge tone="warning">Unsaved changes</StatusBadge> : null}
         </div>
       </header>
 
