@@ -28,6 +28,34 @@ const schemaFor = (docType: DocumentType, slug: string) => {
   return null;
 };
 
+
+
+function collectProtectedTokens(value: unknown, into: string[] = []): string[] {
+  if (typeof value === 'string') {
+    for (const match of value.match(/\{\{[^{}]*\}\}/g) ?? []) into.push(match);
+    return into;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectProtectedTokens(item, into));
+    return into;
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    if (typeof record.$metricValue === 'string') into.push('$metricValue:' + record.$metricValue);
+    if (
+      record.$pair &&
+      typeof record.$pair === 'object' &&
+      typeof (record.$pair as Record<string, unknown>).first === 'string' &&
+      typeof (record.$pair as Record<string, unknown>).second === 'string'
+    ) {
+      const pair = record.$pair as Record<string, unknown>;
+      into.push('$pair:' + pair.first + ':' + pair.second);
+    }
+    Object.values(record).forEach((item) => collectProtectedTokens(item, into));
+  }
+  return into;
+}
+
 export type DraftValidation =
   | { ok: true }
   | { ok: false; message: string; details?: string[] };
@@ -58,7 +86,9 @@ export function validateDocumentDraft(
 
   const originalRefs = [...collectMetricReferences(original)].sort();
   const draftRefs = [...collectMetricReferences(draft)].sort();
-  if (JSON.stringify(originalRefs) !== JSON.stringify(draftRefs)) {
+  const originalTokens = collectProtectedTokens(original).sort();
+  const draftTokens = collectProtectedTokens(draft).sort();
+  if (JSON.stringify(originalRefs) !== JSON.stringify(draftRefs) || JSON.stringify(originalTokens) !== JSON.stringify(draftTokens)) {
     return {
       ok: false,
       message: 'Metric, evidence or client-label references cannot be changed in Phase 5A. Edit only the editorial copy.',
