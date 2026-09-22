@@ -14,6 +14,7 @@ import { GatewayError, toDataError } from '../lib/metrics/errors';
 
 const URL_BASE = 'https://project-ref.supabase.test';
 const PUBLISHABLE = 'publishable-key-for-tests';
+const REST = `${URL_BASE}/rest/v1`;
 
 interface Call {
   url: string;
