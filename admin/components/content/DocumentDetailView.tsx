@@ -37,11 +37,9 @@ const referenceColumns = [
 ] as const;
 
 /**
- * Read-only detail of one document: metadata, the published revision's
- * metadata, whether the draft still equals it, the metrics its fields
- * reference and the linked phrases that restate them. Page content itself is
- * never received here (see ContentRepository.getDocumentDetail), and there
- * are no edit, publish, review or delete controls.
+ * Document detail for an MFA-verified admin: editable draft copy plus the
+ * published revision metadata, metric references and linked phrases. Publishing,
+ * status changes, slug changes, review and deletion remain unavailable here.
  */
 export function DocumentDetailView() {
   const params = useSearchParams();
