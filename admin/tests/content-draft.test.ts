@@ -71,32 +71,28 @@ describe('document draft validation', () => {
   });
 
   test('rejects a client-label token change', () => {
-    const draft = clone(homepage);
-    let changed = false;
-    const walk = (value: unknown) => {
-      if (typeof value === 'string' && value.includes('{{label:')) return value.replace(/\{\{label:[^|]+\|/, '{{label:Changed|');
-      if (Array.isArray(value)) return value.map((item) => walk(item));
-      if (value && typeof value === 'object') {
-        return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, walk(item)]));
-      }
-      return value;
-    };
-    const replace = (value: unknown): unknown => {
+    const replace = (value: unknown, changed: { value: boolean }): unknown => {
       if (typeof value === 'string') {
-        if (!changed && value.includes('{{label:')) {
-          changed = true;
+        if (!changed.value && value.includes('{{label:')) {
+          changed.value = true;
           return value.replace(/\{\{label:[^|]+\|/, '{{label:Changed|');
         }
         return value;
       }
-      if (Array.isArray(value)) return value.map(replace);
-      if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, replace(item)]));
+      if (Array.isArray(value)) return value.map((item) => replace(item, changed));
+      if (value && typeof value === 'object') {
+        return Object.fromEntries(
+          Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, replace(item, changed)]),
+        );
+      }
       return value;
     };
-    void walk;
-    const changedDraft = replace(draft);
-    assert.equal(changed, true);
+
+    const changed = { value: false };
+    const changedDraft = replace(clone(homepage), changed);
+    assert.equal(changed.value, true);
     const result = validateDocumentDraft('homepage', 'home', changedDraft, homepage);
     assert.equal(result.ok, false);
   });
+;
 });
