@@ -88,6 +88,21 @@ export function createPgliteContentGateway(db: PGlite, session: Session): Conten
         return result.rows[0]?.content ?? null;
       }),
 
+    saveDocumentDraft: (documentId, expectedUpdatedAt, draft, changeSummary) =>
+      run(async (tx) => {
+        const result = await tx.query<{ row: DocumentListRow }>(
+          `select jsonb_build_object(
+             'id', d.id, 'doc_type', d.doc_type, 'slug', d.slug, 'status', d.status,
+             'schema_version', d.schema_version, 'sort_order', d.sort_order,
+             'published_revision_id', d.published_revision_id, 'updated_at', d.updated_at
+           ) as row
+           from public.save_document_draft($1, $2, $3::jsonb, $4) d`,
+          [documentId, expectedUpdatedAt, JSON.stringify(draft), changeSummary],
+        );
+        if (!result.rows[0]) throw new Error('Draft save returned no document.');
+        return result.rows[0].row;
+      }),
+
     listDocumentReferences: (documentId) =>
       run(async (tx) => {
         const result = await tx.query<{ row: DocumentMetricRefRow }>(

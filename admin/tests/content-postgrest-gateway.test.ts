@@ -14,6 +14,7 @@ import { GatewayError, toDataError } from '../lib/metrics/errors';
 
 const URL_BASE = 'https://project-ref.supabase.test';
 const PUBLISHABLE = 'publishable-key-for-tests';
+const REST = `${URL_BASE}/rest/v1`;
 
 interface Call {
   url: string;
@@ -51,7 +52,11 @@ const REFS_URL = `${URL_BASE}/rest/v1/document_metric_refs?select=document_id`;
 describe('content gateway requests', () => {
   test('never sends a request without a signed-in session', async () => {
     const { calls, fetchStub } = stub([]);
-    for (const operation of [(g: ContentGateway) => g.listDocuments(), (g: ContentGateway) => g.listReferenceDocumentIds()]) {
+    for (const operation of [
+      (g: ContentGateway) => g.listDocuments(),
+      (g: ContentGateway) => g.listReferenceDocumentIds(),
+      (g: ContentGateway) => g.saveDocumentDraft('doc-1', '2026-09-21T00:00:00Z', { title: 'x' }, 'test'),
+    ]) {
       const error = await operation(gatewayWith(fetchStub, null)).catch((caught: unknown) => caught);
       assert.ok(error instanceof GatewayError);
       assert.equal(toDataError(error).kind, 'unauthenticated');
@@ -99,6 +104,34 @@ describe('content gateway requests', () => {
     assert.equal(totalFromContentRange('0-9/*'), null);
     assert.equal(totalFromContentRange(null), null);
     assert.equal(totalFromContentRange('garbage'), null);
+  });
+
+  test('saves a draft through the dedicated RPC, not a direct document update', async () => {
+    const { calls, fetchStub } = stub([{ status: 200, body: {
+      id: 'doc-1',
+      doc_type: 'homepage',
+      slug: 'home',
+      status: 'published',
+      schema_version: 1,
+      sort_order: 0,
+      published_revision_id: 'rev-1',
+      updated_at: '2026-09-22T00:00:00Z',
+    } }]);
+    const gateway = gatewayWith(fetchStub);
+    const saved = await gateway.saveDocumentDraft('doc-1', '2026-09-21T00:00:00Z', { title: 'x' }, 'Editorial copy update');
+    assert.equal(saved.id, 'doc-1');
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, REST + '/rpc/save_document_draft');
+    assert.equal(calls[0].init.method, 'POST');
+    assert.equal(calls[0].init.cache, 'no-store');
+    assert.deepEqual(JSON.parse(String(calls[0].init.body)), {
+      p_document_id: 'doc-1',
+      p_expected_updated_at: '2026-09-21T00:00:00Z',
+      p_draft: { title: 'x' },
+      p_change_summary: 'Editorial copy update',
+    });
+    assert.equal(headers(calls[0]).apikey, PUBLISHABLE);
+    assert.equal(headers(calls[0]).Authorization, 'Bearer user-access-token');
   });
 
   test('database errors keep their SQLSTATE; network failures are reported as unavailable', async () => {

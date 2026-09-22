@@ -47,29 +47,37 @@ export function totalFromContentRange(header: string | null): number | null {
 }
 
 /**
- * Read-only ContentGateway over the Supabase Data API (PostgREST). Same rules
- * as the metrics gateway: every request carries the admin's own access token,
- * so the database applies RLS and grants as that user, and nothing is sent
- * without a token. Only GET requests exist here.
+ * ContentGateway over the Supabase Data API (PostgREST). Same rules as the
+ * metrics gateway: every request carries the admin's own access token, so the
+ * database applies RLS and grants as that user, and nothing is sent without a
+ * token. Reads are GET requests. The only write is a POST to the dedicated
+ * save_document_draft RPC, which checks admin access, tokens and concurrency
+ * in the database; documents are never updated directly from the browser.
  */
 export function createContentPostgrestGateway(options: ContentPostgrestGatewayOptions): ContentGateway {
   const base = `${options.url.replace(/\/+$/, '')}/rest/v1`;
   const fetchImpl = options.fetch ?? fetch;
 
-  async function get<T>(path: string, prefer?: string): Promise<{ payload: T; contentRange: string | null }> {
+  async function send<T>(
+    path: string,
+    init: { method: 'GET' | 'POST'; body?: unknown; prefer?: string },
+  ): Promise<{ payload: T; contentRange: string | null }> {
+    // No token, no request: checked before anything is built or sent.
     const token = await options.getAccessToken();
     if (!token) throw new GatewayError('unauthenticated', 'No signed-in admin session.', 401);
 
     let response: Response;
     try {
       response = await fetchImpl(`${base}/${path}`, {
-        method: 'GET',
+        method: init.method,
         headers: {
           apikey: options.publishableKey,
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
-          ...(prefer ? { Prefer: prefer } : {}),
+          ...(init.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+          ...(init.prefer ? { Prefer: init.prefer } : {}),
         },
+        body: init.body === undefined ? undefined : JSON.stringify(init.body),
         cache: 'no-store',
       });
     } catch {
@@ -88,6 +96,13 @@ export function createContentPostgrestGateway(options: ContentPostgrestGatewayOp
       throw new GatewayError(body.code ?? String(response.status), body.message ?? response.statusText, response.status);
     }
     return { payload: payload as T, contentRange: response.headers.get('Content-Range') };
+  }
+
+  const get = <T>(path: string, prefer?: string) => send<T>(path, { method: 'GET', prefer });
+
+  /** POST to a database function (RPC) and return its result. */
+  async function rpc<T>(name: string, body: Record<string, unknown>): Promise<T> {
+    return (await send<T>(`rpc/${name}`, { method: 'POST', body })).payload;
   }
 
   return {
@@ -109,6 +124,14 @@ export function createContentPostgrestGateway(options: ContentPostgrestGatewayOp
       const { payload } = await get<{ content: unknown }[]>(revisionContentPath(revisionId));
       return payload[0]?.content ?? null;
     },
+
+    saveDocumentDraft: (documentId, expectedUpdatedAt, draft, changeSummary) =>
+      rpc<DocumentListRow>('save_document_draft', {
+        p_document_id: documentId,
+        p_expected_updated_at: expectedUpdatedAt,
+        p_draft: draft,
+        p_change_summary: changeSummary,
+      }),
 
     async listDocumentReferences(documentId) {
       const { payload, contentRange } = await get<DocumentMetricRefRow[]>(documentReferencesPath(documentId), 'count=exact');

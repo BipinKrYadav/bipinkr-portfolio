@@ -11,6 +11,7 @@ import { DataTable, type Row } from '@admin/components/ui/DataTable';
 import { Notice } from '@admin/components/ui/Notice';
 import { DefinitionList, Panel, Surface } from '@admin/components/ui/Panel';
 import { StatusBadge } from '@admin/components/ui/StatusBadge';
+import { DocumentDraftEditor } from './DocumentDraftEditor';
 import { metricDetailHref } from '@admin/lib/content/links';
 import { documentStatusLabels, type DocumentRevisionRow, type DocumentStatus } from '@admin/lib/content/model';
 import type { DocumentDetail, DocumentReferenceEntry, LinkedPhraseMatch } from '@admin/lib/content/repository';
@@ -36,11 +37,9 @@ const referenceColumns = [
 ] as const;
 
 /**
- * Read-only detail of one document: metadata, the published revision's
- * metadata, whether the draft still equals it, the metrics its fields
- * reference and the linked phrases that restate them. Page content itself is
- * never received here (see ContentRepository.getDocumentDetail), and there
- * are no edit, publish, review or delete controls.
+ * Document detail for an MFA-verified admin: editable draft copy plus the
+ * published revision metadata, metric references and linked phrases. Publishing,
+ * status changes, slug changes, review and deletion remain unavailable here.
  */
 export function DocumentDetailView() {
   const params = useSearchParams();
@@ -49,19 +48,19 @@ export function DocumentDetailView() {
   const repositoryState = useContentRepository();
   const { state: auth } = useAuth();
   const [detailState, setDetailState] = useState<DetailState>({ status: 'loading' });
+  const [dirty, setDirty] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (repositoryState.status !== 'ready') return;
+    const result = await repositoryState.repository.getDocumentDetail(docType, slug);
+    setDetailState(result.ok ? { status: 'loaded', detail: result.data } : { status: 'error', error: result.error });
+  }, [repositoryState, docType, slug]);
 
   useEffect(() => {
-    if (repositoryState.status !== 'ready') return;
-    let active = true;
     setDetailState({ status: 'loading' });
-    repositoryState.repository.getDocumentDetail(docType, slug).then((result) => {
-      if (!active) return;
-      setDetailState(result.ok ? { status: 'loaded', detail: result.data } : { status: 'error', error: result.error });
-    });
-    return () => {
-      active = false;
-    };
-  }, [repositoryState, docType, slug]);
+    void load();
+  }, [load]);
 
   const actorLabel = useCallback(
     (userId: string | null) => {
@@ -108,8 +107,9 @@ export function DocumentDetailView() {
     );
   }
 
+  const detail = detailState.detail;
   const { document, publishedRevision, publishedRevisionMissing, revisions, draftMatchesPublished, hasDraft, references, linkedPhrases } =
-    detailState.detail;
+    detail;
 
   return (
     <>
@@ -126,12 +126,36 @@ export function DocumentDetailView() {
         <h1 className="mt-2 text-xl font-semibold tracking-tight">{document.slug}</h1>
         <div className="mt-3 flex flex-wrap gap-2">
           <StatusBadge tone={statusTone[document.status]}>{documentStatusLabels[document.status]}</StatusBadge>
-          <StatusBadge>Read-only</StatusBadge>
+          <StatusBadge tone="accent">Draft editing</StatusBadge>{dirty ? <StatusBadge tone="warning">Unsaved changes</StatusBadge> : null}
         </div>
       </header>
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="min-w-0 space-y-8">
+          {notice ? <Notice tone="info" title={notice} /> : null}
+
+          <Panel
+            title="Edit draft"
+            description="Edit approved editorial text fields. Protected tokens and structural fields stay locked. Save creates a revision but never publishes."
+          >
+            <Surface className="p-4">
+              <DocumentDraftEditor
+                detail={detail}
+                onDirtyChange={setDirty}
+                onSave={async (nextDraft, summary) => {
+                  setNotice(null);
+                  const saved = await repositoryState.repository.saveDocumentDraft(detail, nextDraft, summary);
+                  if (saved.ok) {
+                    setNotice('Draft saved as a new revision. It is not published.');
+                    setDirty(false);
+                    await load();
+                  }
+                  return saved;
+                }}
+              />
+            </Surface>
+          </Panel>
+
           <Panel
             title="Metric references"
             description={`${references.length} reference${references.length === 1 ? '' : 's'} recorded for this document's fields, by field path.`}

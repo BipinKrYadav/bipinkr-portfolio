@@ -1,0 +1,101 @@
+import assert from 'node:assert/strict';
+import { describe, test } from 'node:test';
+
+import { loadSnapshot } from '../../lib/snapshot/load';
+
+import { validateDocumentDraft } from '../lib/content/draft';
+
+const snapshot = loadSnapshot();
+const homepage = snapshot.documents.homepage.content;
+// The homepage carries no protected tokens at all, so token tests use a
+// document that has every kind: metric, evidence, client-label, $metricValue, $pair.
+const tokenised = snapshot.documents.caseStudies['meta-lead-generation'].content;
+
+function clone<T>(value: T): T {
+  return structuredClone(value);
+}
+
+function replaceFirstMetricToken(value: unknown): boolean {
+  if (typeof value === 'string') return value.includes('{{metric:');
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      if (typeof value[index] === 'string' && value[index].includes('{{metric:')) {
+        value[index] = value[index].replace(/\{\{metric:[^|}]+/, '{{metric:site.accounts');
+        return true;
+      }
+      if (replaceFirstMetricToken(value[index])) return true;
+    }
+    return false;
+  }
+  if (value && typeof value === 'object') {
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      if (typeof item === 'string' && item.includes('{{metric:')) {
+        (value as Record<string, unknown>)[key] = item.replace(/\{\{metric:[^|}]+/, '{{metric:site.accounts');
+        return true;
+      }
+      if (replaceFirstMetricToken(item)) return true;
+    }
+  }
+  return false;
+}
+
+describe('document draft validation', () => {
+  test('accepts the published baseline content for every document', () => {
+    const documents = [
+      ['proof_strip', snapshot.documents.proofStrip],
+      ['homepage', snapshot.documents.homepage],
+      ['about', snapshot.documents.about],
+      ['services', snapshot.documents.services],
+      ['contact', snapshot.documents.contact],
+      ['case_study_index', snapshot.documents.caseStudyIndex],
+      ...Object.values(snapshot.documents.caseStudies).map((document) => ['case_study', document] as const),
+    ] as const;
+
+    for (const [type, document] of documents) {
+      const result = validateDocumentDraft(type, document.slug, document.content, document.content);
+      assert.equal(result.ok, true, type + '/' + document.slug);
+    }
+  });
+
+  test('rejects a schema-breaking draft', () => {
+    const draft = clone(homepage) as Record<string, unknown>;
+    delete (draft.hero as Record<string, unknown>).h1;
+    const result = validateDocumentDraft('homepage', 'home', draft, homepage);
+    assert.equal(result.ok, false);
+    assert.match(result.ok ? '' : result.message, /published document schema/i);
+  });
+
+  test('rejects a metric-token change even when the resulting token is valid', () => {
+    const draft = clone(tokenised);
+    assert.equal(replaceFirstMetricToken(draft), true);
+    const result = validateDocumentDraft('case_study', 'meta-lead-generation', draft, tokenised);
+    assert.equal(result.ok, false);
+    assert.match(result.ok ? '' : result.message, /references cannot be changed/i);
+  });
+
+  test('rejects a client-label token change', () => {
+    const replace = (value: unknown, changed: { value: boolean }): unknown => {
+      if (typeof value === 'string') {
+        if (!changed.value && value.includes('{{label:')) {
+          changed.value = true;
+          return value.replace(/\{\{label:[^|]+\|/, '{{label:Changed|');
+        }
+        return value;
+      }
+      if (Array.isArray(value)) return value.map((item) => replace(item, changed));
+      if (value && typeof value === 'object') {
+        return Object.fromEntries(
+          Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, replace(item, changed)]),
+        );
+      }
+      return value;
+    };
+
+    const changed = { value: false };
+    const changedDraft = replace(clone(tokenised), changed);
+    assert.equal(changed.value, true);
+    const result = validateDocumentDraft('case_study', 'meta-lead-generation', changedDraft, tokenised);
+    assert.equal(result.ok, false);
+    assert.match(result.ok ? '' : result.message, /references cannot be changed/i);
+  });
+});
