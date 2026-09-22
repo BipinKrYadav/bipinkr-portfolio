@@ -33,6 +33,13 @@ export interface ContentGateway {
   listRevisions(documentId: string): Promise<DocumentRevisionRow[]>;
   /** The content of one revision (for comparison only), or null when not visible. */
   getRevisionContent(revisionId: string): Promise<unknown | null>;
+  /** Save an editorial draft and create an immutable revision. Publication fields stay untouched. */
+  saveDocumentDraft(
+    documentId: string,
+    expectedUpdatedAt: string,
+    draft: unknown,
+    changeSummary: string,
+  ): Promise<DocumentListRow>;
   /** A document's metric references with each metric's key, name and archive state. */
   listDocumentReferences(documentId: string): Promise<CountedRows<DocumentMetricRefRow>>;
   /** Every linked phrase; relevance to a document is decided by the repository. */
