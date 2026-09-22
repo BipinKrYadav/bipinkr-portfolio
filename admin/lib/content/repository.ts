@@ -1,6 +1,7 @@
 import { fail, ok, toDataError, type DataResult } from '../metrics/errors';
 
 import type { ContentGateway, CountedRows } from './gateway';
+import { validateDocumentDraft } from './draft';
 import {
   DOCUMENT_SLUG,
   isDocumentType,
@@ -46,6 +47,8 @@ export interface LinkedPhraseMatch extends LinkedPhraseRow {
  */
 export interface DocumentDetail {
   document: DocumentListRow;
+  /** The current editable draft, visible only to an authenticated admin. */
+  draft: unknown;
   /** The document has a draft (always true under the current schema, which requires one). */
   hasDraft: boolean;
   /** The revision published_revision_id points at, or null. */
@@ -68,8 +71,10 @@ export interface DocumentDetail {
 export interface ContentRepository {
   /** Documents in database order, each with its metric-reference count. Read-only. */
   listDocuments(): Promise<DataResult<DocumentListEntry[]>>;
-  /** One document by type and slug. Read-only; `not_found` when it does not resolve. */
+  /** One document by type and slug. */
   getDocumentDetail(docType: string, slug: string): Promise<DataResult<DocumentDetail>>;
+  /** Save editorial copy; the database creates the revision atomically. */
+  saveDocumentDraft(detail: DocumentDetail, draft: unknown, changeSummary: string): Promise<DataResult<DocumentListRow>>;
 }
 
 /** JSON with object keys sorted, so equal documents compare equal whatever key order jsonb returns. */
@@ -174,6 +179,7 @@ export function createContentRepository(gateway: ContentGateway): ContentReposit
 
         return ok({
           document,
+          draft,
           hasDraft,
           publishedRevision,
           publishedRevisionMissing: document.published_revision_id !== null && publishedRevision === null,
@@ -185,6 +191,22 @@ export function createContentRepository(gateway: ContentGateway): ContentReposit
       } catch (error) {
         return { ok: false, error: toDataError(error) };
       }
+    },
+
+    async saveDocumentDraft(detail, draft, changeSummary) {
+      const summary = changeSummary.trim();
+      if (!summary) return fail('validation', 'A change summary is required.');
+
+      const validation = validateDocumentDraft(detail.document.doc_type, detail.document.slug, draft, detail.draft);
+      if (!validation.ok) return fail('validation', validation.message, validation.details);
+
+      if (canonical(detail.draft) === canonical(draft)) {
+        return fail('validation', 'There are no changes to save.');
+      }
+
+      return attempt(() =>
+        gateway.saveDocumentDraft(detail.document.id, detail.document.updated_at, draft, summary),
+      );
     },
   };
 }
