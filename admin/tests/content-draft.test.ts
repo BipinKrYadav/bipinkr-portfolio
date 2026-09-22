@@ -94,5 +94,4 @@ describe('document draft validation', () => {
     const result = validateDocumentDraft('homepage', 'home', changedDraft, homepage);
     assert.equal(result.ok, false);
   });
-;
 });
