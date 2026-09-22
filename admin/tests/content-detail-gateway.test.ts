@@ -16,8 +16,8 @@ import { createContentRepository, matchLinkedPhrases } from '../lib/content/repo
 import { GatewayError, toDataError } from '../lib/metrics/errors';
 
 /**
- * Document detail (Phase 4.5): request construction, the repository's rules
- * and the phrase matching, with a stubbed fetch. No network, no project.
+ * Document detail (Phases 4.5–5A): request construction, repository rules,
+ * phrase matching and authenticated draft exposure, with a stubbed fetch.
  */
 
 const URL_BASE = 'https://project-ref.supabase.test';
@@ -172,13 +172,14 @@ describe('document detail repository', () => {
     );
   });
 
-  test('raw draft and revision content never leave the repository', async () => {
+  test('the current draft reaches the authenticated editor, while revision content stays metadata-only', async () => {
     const { fetchStub } = routedStub(detailRoutes());
     const result = await createContentRepository(gatewayWith(fetchStub)).getDocumentDetail('case_study', 'meta-lead-generation');
     assert.ok(result.ok);
-    const serialised = JSON.stringify(result.data);
-    assert.ok(!('draft' in result.data.document));
-    assert.doesNotMatch(serialised, /"draft"|"content"|\{\{label:|Real Client|Private/);
+    assert.ok('draft' in result.data);
+    assert.match(JSON.stringify(result.data.draft), /\{\{label:Real Client\|Client A\}\}/);
+    for (const row of result.data.revisions) assert.ok(!('content' in row));
+    assert.doesNotMatch(JSON.stringify(result.data.revisions), /Real Client|Private/);
   });
 
   test('a changed draft is reported as different; no published revision means nothing to compare', async () => {
