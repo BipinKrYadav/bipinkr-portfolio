@@ -11,6 +11,14 @@ import {
   type LinkedPhraseRow,
 } from './model';
 
+async function attempt<T>(operation: () => Promise<T>): Promise<DataResult<T>> {
+  try {
+    return ok(await operation());
+  } catch (error) {
+    return { ok: false, error: toDataError(error) };
+  }
+}
+
 export interface DocumentListEntry extends DocumentListRow {
   /** document_metric_refs rows for this document. */
   referenceCount: number;
