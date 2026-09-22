@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import { loadSnapshot } from '@lib/snapshot/load';
+import { loadSnapshot } from '../../lib/snapshot/load';
 
 import { validateDocumentDraft } from '../lib/content/draft';
 
