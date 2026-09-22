@@ -9,8 +9,8 @@ import {
   preschoolGoogleAdsContentSchema,
   proofStripContentSchema,
   servicesContentSchema,
-} from '@lib/snapshot/schema';
-import { collectMetricReferences } from '@lib/content/token-grammar';
+} from '../../../lib/snapshot/schema';
+import { collectMetricReferences } from '../../../lib/content/token-grammar';
 
 import type { DocumentType } from './model';
 
