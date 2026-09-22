@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 
 import { buttonClass, inputClass } from '@admin/components/ui/Field';
 import { ErrorMessage } from '@admin/components/metrics/StateMessage';
@@ -121,7 +121,7 @@ export function DocumentDraftEditor({
     setDraft((current) => setAtPath(current, path, event.target.value));
   }
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!dirty || !summary.trim()) return;
     setSaving(true);
