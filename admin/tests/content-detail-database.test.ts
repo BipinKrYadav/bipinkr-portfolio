@@ -112,18 +112,17 @@ describe('document detail for the admin', () => {
     assert.deepEqual(result.data.linkedPhrases, []);
   });
 
-  test('raw page content never appears in what the UI receives', async () => {
-    for (const [type, slug] of [['homepage', 'home'], ['case_study', 'meta-lead-generation'], ['case_study', 'measurement-audit'], ['case_study', 'preschool-google-ads'], ['case_study', 'cross-channel-real-estate']]) {
-      const result = await detailAs(ADMIN_SESSION, type, slug);
-      assert.ok(result.ok);
-      const serialised = JSON.stringify(result.data);
-      assert.doesNotMatch(serialised, /"draft"|"content"|\{\{(label|metric|evidence):|\$metricValue|\$pair/);
+  test('draft content is available to the MFA-verified admin editor, not to anonymous or non-admin sessions', async () => {
+    const admin = await detailAs(ADMIN_SESSION, 'case_study', 'meta-lead-generation');
+    assert.ok(admin.ok);
+    assert.ok(admin.data.draft && typeof admin.data.draft === 'object');
+    assert.match(JSON.stringify(admin.data.draft), /\{\{(label|metric|evidence):/);
 
-      // Metric names come from public.metrics, not from the document, and are
-      // shown by the Metrics pages too; everything else must carry no label value.
-      const withoutMetricNames = JSON.stringify({ ...result.data, references: result.data.references.map(({ metricName: _name, ...rest }) => rest) });
-      for (const name of realLabelNames) assert.ok(!withoutMetricNames.includes(name), `${type}/${slug} leaks a label value outside metric names`);
-    }
+    const nonAdmin = await detailAs(NON_ADMIN_SESSION, 'case_study', 'meta-lead-generation');
+    assert.equal(nonAdmin.ok ? null : nonAdmin.error.kind, 'not_found');
+
+    const anonymous = await detailAs(ANON_SESSION, 'case_study', 'meta-lead-generation');
+    assert.equal(anonymous.ok ? null : anonymous.error.kind, 'permission_denied');
   });
 
   test('the only label value a detail shows is inside three metric names from public.metrics', async () => {
@@ -183,6 +182,80 @@ describe('row level security on document detail', () => {
 });
 
 // These change the in-memory test database only (never a fixture file), so they run last.
+describe('Phase 5A draft editing', () => {
+  test('admin can save editorial copy and the database creates an immutable revision without publishing', async () => {
+    const before = await detailAs(ADMIN_SESSION, 'homepage', 'home');
+    assert.ok(before.ok);
+    const original = before.data.draft as Record<string, any>;
+    const nextDraft = structuredClone(original);
+    nextDraft.hero.eyebrow = original.hero.eyebrow + ' · Edited in test';
+
+    const saved = await createContentRepository(createPgliteContentGateway(db, ADMIN_SESSION)).saveDocumentDraft(
+      before.data,
+      nextDraft,
+      'Phase 5A automated draft-save test',
+    );
+    assert.ok(saved.ok, saved.ok ? '' : saved.error.message);
+    assert.equal(saved.data.status, 'published');
+    assert.equal(saved.data.published_revision_id, before.data.document.published_revision_id);
+
+    const after = await detailAs(ADMIN_SESSION, 'homepage', 'home');
+    assert.ok(after.ok);
+    assert.equal(after.data.draftMatchesPublished, false);
+    assert.equal((after.data.draft as any).hero.eyebrow, nextDraft.hero.eyebrow);
+    assert.equal(after.data.revisions.length, 2);
+    assert.equal(after.data.revisions[0].revision_number, 2);
+    assert.equal(after.data.revisions[0].change_summary, 'Phase 5A automated draft-save test');
+    assert.equal(after.data.publishedRevision?.revision_number, 1);
+  });
+
+  test('token changes are rejected and leave the draft unchanged', async () => {
+    const before = await detailAs(ADMIN_SESSION, 'case_study', 'meta-lead-generation');
+    assert.ok(before.ok);
+    const original = before.data.draft as Record<string, any>;
+    const nextDraft = structuredClone(original);
+    const originalValue = nextDraft.summary.subtitle;
+    nextDraft.summary.subtitle = originalValue.replace(/\{\{metric:/, '{{metric:site.accounts');
+
+    const saved = await createContentRepository(createPgliteContentGateway(db, ADMIN_SESSION)).saveDocumentDraft(
+      before.data,
+      nextDraft,
+      'This must be rejected',
+    );
+    assert.equal(saved.ok ? null : saved.error.kind, 'validation');
+
+    const after = await detailAs(ADMIN_SESSION, 'case_study', 'meta-lead-generation');
+    assert.ok(after.ok);
+    assert.equal((after.data.draft as any).summary.subtitle, originalValue);
+    assert.equal(after.data.revisions.length, 1);
+  });
+
+  test('a stale draft save is rejected as a conflict', async () => {
+    const first = await detailAs(ADMIN_SESSION, 'services', 'services');
+    assert.ok(first.ok);
+    const original = first.data.draft as Record<string, any>;
+    const nextDraft = structuredClone(original);
+    nextDraft.services[0].title = original.services[0].title + ' · first';
+
+    const firstSave = await createContentRepository(createPgliteContentGateway(db, ADMIN_SESSION)).saveDocumentDraft(
+      first.data,
+      nextDraft,
+      'First test save',
+    );
+    assert.ok(firstSave.ok);
+
+    const staleDraft = structuredClone(original);
+    staleDraft.services[0].title = original.services[0].title + ' · stale';
+    const staleSave = await createContentRepository(createPgliteContentGateway(db, ADMIN_SESSION)).saveDocumentDraft(
+      first.data,
+      staleDraft,
+      'Stale test save',
+    );
+    assert.equal(staleSave.ok ? null : staleSave.error.kind, 'validation');
+    assert.match(staleSave.ok ? '' : staleSave.error.message, /changed after you opened it/i);
+  });
+});
+
 describe('detail after in-memory changes', () => {
   test('a phrase attached to a document is shown as attached, even without a matching metric', async () => {
     const { rows } = await db.query<{ id: string }>("select id from public.documents where doc_type = 'homepage' and slug = 'home'");
