@@ -110,6 +110,19 @@ export function createContentPostgrestGateway(options: ContentPostgrestGatewayOp
       return payload[0]?.content ?? null;
     },
 
+    async saveDocumentDraft(documentId, expectedUpdatedAt, draft, changeSummary) {
+      const payload = await request<DocumentListRow>('rpc/save_document_draft', {
+        method: 'POST',
+        body: {
+          p_document_id: documentId,
+          p_expected_updated_at: expectedUpdatedAt,
+          p_draft: draft,
+          p_change_summary: changeSummary,
+        },
+      });
+      return payload;
+    },
+
     async listDocumentReferences(documentId) {
       const { payload, contentRange } = await get<DocumentMetricRefRow[]>(documentReferencesPath(documentId), 'count=exact');
       return { rows: payload, total: totalFromContentRange(contentRange) };
