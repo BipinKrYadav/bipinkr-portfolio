@@ -70,18 +70,14 @@ export interface MetricRow {
  * update grant on public.metrics minus `change_reason` (sent with a save).
  * metric_key, evidence_status, archived_at and every verified_* column are
  * deliberately absent: archiving goes through public.archive_metric(), which
- * stamps database time. Checked against the database by admin/tests.
+ * stamps database time. The structural fields in LOCKED_METRIC_FIELDS are
+ * absent too (Phase 5B). Checked against the database by admin/tests.
  */
 export const EDITABLE_METRIC_FIELDS = [
   'name',
   'description',
-  'kind',
-  'value_type',
-  'unit',
-  'currency',
   'value',
   'precision',
-  'display_format',
   'formula',
   'data_origin',
   'source_platform',
@@ -97,10 +93,20 @@ export const EDITABLE_METRIC_FIELDS = [
   'legacy_method_note',
 ] as const satisfies readonly (keyof MetricRow)[];
 
+/**
+ * Phase 5B: what the number is and how every page formats it. Fixed like the
+ * metric key — a different kind of number is a new metric. The database has
+ * no update grant for these (migration 20260923000100).
+ */
+export const LOCKED_METRIC_FIELDS = ['kind', 'value_type', 'unit', 'currency', 'display_format'] as const satisfies readonly (keyof MetricRow)[];
+
 export type EditableMetricField = (typeof EDITABLE_METRIC_FIELDS)[number];
 
-/** Changing any of these requires a change reason (enforced by the database). */
-export const REASON_REQUIRED_FIELDS = ['value', 'kind', 'formula', 'precision'] as const satisfies readonly EditableMetricField[];
+/**
+ * The figure itself. Since Phase 5B every edit needs a change summary; these
+ * fields additionally make an existing source check stale.
+ */
+export const REASON_REQUIRED_FIELDS = ['value', 'formula', 'precision'] as const satisfies readonly EditableMetricField[];
 
 export type VerificationState = 'verified_current' | 'changed_since_verification' | 'not_verified';
 

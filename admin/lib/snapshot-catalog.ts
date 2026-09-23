@@ -1,5 +1,6 @@
 import baseline from '../../snapshot/baseline.json';
 
+import { buildPublishedBaseline, type PublishedBaselineIndex } from './metrics/published-baseline';
 import { buildSnapshotReferenceIndex, type SnapshotReferenceIndex } from './metrics/snapshot-references';
 
 /**
@@ -57,3 +58,10 @@ export const snapshotSource = 'snapshot/baseline.json';
  * (as a prop), never the snapshot's page copy.
  */
 export const publishedMetricReferences: SnapshotReferenceIndex = buildSnapshotReferenceIndex(baseline);
+
+/**
+ * Metric key → fingerprints of each published metric's fields: the published
+ * baseline the admin compares its working copy against. Fingerprints only, so
+ * no metric name or figure reaches the admin build through this.
+ */
+export const publishedMetricBaseline: PublishedBaselineIndex = buildPublishedBaseline(baseline);

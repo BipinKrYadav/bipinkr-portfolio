@@ -6,6 +6,7 @@ import { useAuth, useBackendConnection } from '@admin/components/auth/AuthProvid
 import { readAuthConfig } from '@admin/lib/auth/config';
 import { createPostgrestGateway } from '@admin/lib/metrics/postgrest-gateway';
 import { createMetricsRepository, type MetricsRepository } from '@admin/lib/metrics/repository';
+import type { PublishedBaselineIndex } from '@admin/lib/metrics/published-baseline';
 import type { SnapshotReferenceIndex } from '@admin/lib/metrics/snapshot-references';
 
 export type RepositoryState =
@@ -23,10 +24,13 @@ const RepositoryContext = createContext<RepositoryState | null>(null);
 export function MetricsRepositoryProvider({
   children,
   snapshotReferences,
+  publishedBaseline,
 }: {
   children: ReactNode;
   /** Build-time index of metric uses in the published snapshot (lib/snapshot-catalog.ts). */
   snapshotReferences: SnapshotReferenceIndex;
+  /** Build-time fingerprints of the published metrics (lib/snapshot-catalog.ts). */
+  publishedBaseline: PublishedBaselineIndex;
 }) {
   const { state: auth, client } = useAuth();
   const connection = useBackendConnection();
@@ -47,8 +51,8 @@ export function MetricsRepositoryProvider({
       publishableKey: config.publishableKey,
       getAccessToken: () => client.getAccessToken(),
     });
-    return { status: 'ready', repository: createMetricsRepository(gateway, snapshotReferences) };
-  }, [auth.status, client, unavailableReason, snapshotReferences]);
+    return { status: 'ready', repository: createMetricsRepository(gateway, snapshotReferences, publishedBaseline) };
+  }, [auth.status, client, unavailableReason, snapshotReferences, publishedBaseline]);
 
   return <RepositoryContext.Provider value={value}>{children}</RepositoryContext.Provider>;
 }

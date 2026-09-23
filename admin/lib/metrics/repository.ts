@@ -12,6 +12,7 @@ import { fail, ok, toDataError, type DataResult } from './errors';
 import { validateFormula } from './formula';
 import type { MetricsGateway } from './gateway';
 import type { EvidenceLinkRow, EvidenceStatus, MetricRow, MetricVerificationRow } from './model';
+import { comparePublished, type PublishedBaselineIndex, type PublishedState } from './published-baseline';
 import { snapshotReferencesFor, type SnapshotReferenceIndex } from './snapshot-references';
 
 export interface MetricsOverview {
@@ -28,6 +29,8 @@ export interface MetricDetail {
   versions: VersionEntry[];
   evidence: EvidenceLinkRow[];
   blockers: ArchiveBlockers;
+  /** The working copy against the published snapshot (the live site). */
+  published: PublishedState;
 }
 
 export interface MetricsRepository {
@@ -53,8 +56,14 @@ async function attempt<T>(operation: () => Promise<T>): Promise<DataResult<T>> {
  * except for uses in the published snapshot, which the database does not
  * record yet. `snapshotReferences` is required so that check is never
  * dropped by accident; pass the build-time index from lib/snapshot-catalog.ts.
+ * `publishedBaseline` (same source) is what "published" means for a metric:
+ * saving never publishes, it only makes the working copy differ from it.
  */
-export function createMetricsRepository(gateway: MetricsGateway, snapshotReferences: SnapshotReferenceIndex): MetricsRepository {
+export function createMetricsRepository(
+  gateway: MetricsGateway,
+  snapshotReferences: SnapshotReferenceIndex,
+  publishedBaseline: PublishedBaselineIndex,
+): MetricsRepository {
   return {
     listMetrics: () =>
       attempt(async () => {
@@ -86,6 +95,7 @@ export function createMetricsRepository(gateway: MetricsGateway, snapshotReferen
             linkedPhrases,
             snapshotReferencesFor(snapshotReferences, metric.metric_key),
           ),
+          published: comparePublished(metric, publishedBaseline),
         };
       });
       if (!loaded.ok) return loaded;
@@ -93,15 +103,16 @@ export function createMetricsRepository(gateway: MetricsGateway, snapshotReferen
     },
 
     async saveMetric(detail, draft, changeReason) {
+      if (detail.metric.archived_at) return fail('validation', 'This metric is archived and cannot be edited.');
       const patch = diffMetric(detail.metric, draft);
       if (Object.keys(patch).length === 0) return fail('validation', 'There are no changes to save.');
 
       const reason = changeReason.trim();
       if (requiresChangeReason(patch) && !reason) {
-        return fail('validation', 'A change reason is required when the value, kind, formula or precision changes.');
+        return fail('validation', 'A change summary is required for every metric edit.');
       }
 
-      if ('formula' in patch && draft.kind === 'calculated') {
+      if ('formula' in patch && detail.metric.kind === 'calculated') {
         const context = new Map(detail.metrics.map((metric) => [metric.metric_key, metric]));
         const issues = validateFormula(draft.formula, detail.metric.metric_key, context);
         if (issues.length > 0) {
@@ -111,7 +122,7 @@ export function createMetricsRepository(gateway: MetricsGateway, snapshotReferen
 
       const metric = detail.metric;
       const result = await attempt(() =>
-        gateway.updateMetric(metric.id, metric.updated_at, reason ? { ...patch, change_reason: reason } : patch),
+        gateway.updateMetric(metric.id, metric.updated_at, { ...patch, change_reason: reason }),
       );
       if (!result.ok) return result;
       if (result.data) return ok(result.data);

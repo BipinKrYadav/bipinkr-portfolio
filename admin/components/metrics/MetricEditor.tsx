@@ -1,18 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { Lock } from 'lucide-react';
 
 import { buttonClass, Field, inputClass } from '@admin/components/ui/Field';
 import { diffMetric, draftFromMetric, reasonRequiredFields, type MetricDraft } from '@admin/lib/metrics/changes';
 import type { DataResult } from '@admin/lib/metrics/errors';
-import { emptyFormula, validateFormula } from '@admin/lib/metrics/formula';
+import { validateFormula } from '@admin/lib/metrics/formula';
 import {
   DATA_ORIGINS,
-  DISPLAY_FORMATS,
   humanise,
   kindLabels,
-  METRIC_KINDS,
-  METRIC_UNITS,
   PERIOD_BASES,
   precisionLabels,
   PRECISIONS,
@@ -20,8 +18,6 @@ import {
   sourcePlatformLabels,
   SOURCE_TYPES,
   unitLabel,
-  VALUE_TYPES,
-  type MetricKind,
   type MetricRow,
 } from '@admin/lib/metrics/model';
 import type { MetricDetail } from '@admin/lib/metrics/repository';
@@ -29,11 +25,14 @@ import type { MetricDetail } from '@admin/lib/metrics/repository';
 import { FormulaEditor } from './FormulaEditor';
 import { ErrorMessage } from './StateMessage';
 
-type Nullable = 'currency' | 'source_platform' | 'source_reference' | 'attribution_setting' | 'reporting_period_start' | 'reporting_period_end' | 'public_note' | 'internal_note' | 'legacy_method_note';
+type Nullable = 'source_platform' | 'source_reference' | 'attribution_setting' | 'reporting_period_start' | 'reporting_period_end' | 'public_note' | 'internal_note' | 'legacy_method_note';
 
 /**
  * Edit form for the fields the backend lets an admin change. The metric key,
- * evidence status and verification record are not part of it.
+ * evidence status and verification record are not part of it, and the
+ * structural fields (kind, value type, unit, currency, display format) are
+ * shown locked (Phase 5B). Every save needs a change summary and becomes a
+ * new draft version; nothing is published from here.
  */
 export function MetricEditor({
   detail,
@@ -58,13 +57,13 @@ export function MetricEditor({
   const patch = useMemo(() => diffMetric(metric, draft), [metric, draft]);
   const changed = Object.keys(patch);
   const reasonFields = reasonRequiredFields(patch);
-  const reasonMissing = reasonFields.length > 0 && !reason.trim();
+  const reasonMissing = !reason.trim();
   const formulaIssues = useMemo(
     () =>
-      draft.kind === 'calculated' && 'formula' in patch
+      metric.kind === 'calculated' && 'formula' in patch
         ? validateFormula(draft.formula, metric.metric_key, new Map(metrics.map((item) => [item.metric_key, item])))
         : [],
-    [draft, patch, metric.metric_key, metrics],
+    [draft, patch, metric.kind, metric.metric_key, metrics],
   );
 
   useEffect(() => onDirtyChange(changed.length > 0), [changed.length, onDirtyChange]);
@@ -77,17 +76,6 @@ export function MetricEditor({
   };
   const updateNullable = (field: Nullable, value: string) => update(field, (value === '' ? null : value) as never);
 
-  const changeKind = (kind: MetricKind) => {
-    setResult(null);
-    setDraft((current) => ({
-      ...current,
-      kind,
-      value: kind === 'calculated' ? null : current.value,
-      formula: kind === 'calculated' ? (current.formula ?? emptyFormula('ratio')) : null,
-      legacy_method_note: kind === 'legacy_fixed' ? current.legacy_method_note : null,
-    }));
-  };
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (changed.length === 0 || reasonMissing || formulaIssues.length > 0) return;
@@ -95,6 +83,7 @@ export function MetricEditor({
     const saved = await onSave(draft, reason);
     setSaving(false);
     setResult(saved);
+    if (saved.ok) setReason('');
   }
 
   const select = (id: keyof MetricDraft, options: readonly string[], label: (value: string) => string, nullable = false): ReactNode => (
@@ -129,24 +118,30 @@ export function MetricEditor({
       <fieldset disabled={readOnly || saving} className="space-y-5">
         <legend className="sr-only">Metric fields</legend>
 
+        <Group
+          title="Locked fields"
+          description="What the number is and how every page formats it. Fixed like the metric key: a different kind of number is a new metric."
+        >
+          <LockedFacts
+            items={[
+              ['Kind', kindLabels[metric.kind]],
+              ['Value type', humanise(metric.value_type)],
+              ['Unit', unitLabel(metric.unit)],
+              ['Currency', metric.currency ?? 'None'],
+              ['Display format', metric.display_format],
+            ]}
+          />
+        </Group>
+
         <Group title="Figure">
-          <Field id="metric-kind" label="Kind">
-            <select id="metric-kind" value={draft.kind} onChange={(event) => changeKind(event.target.value as MetricKind)} className={inputClass}>
-              {METRIC_KINDS.map((kind) => (
-                <option key={kind} value={kind}>
-                  {kindLabels[kind]}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field id="metric-value" label="Value" hint={draft.kind === 'calculated' ? 'Calculated metrics store no value.' : 'Leave empty if not recorded.'}>
+          <Field id="metric-value" label="Value" hint={metric.kind === 'calculated' ? 'Calculated metrics store no value.' : 'Leave empty if not recorded.'}>
             <input
               id="metric-value"
               type="number"
               step="any"
               inputMode="decimal"
               value={draft.value ?? ''}
-              disabled={draft.kind === 'calculated'}
+              disabled={metric.kind === 'calculated'}
               onChange={(event) => update('value', event.target.value === '' ? null : Number(event.target.value))}
               className={inputClass}
             />
@@ -154,21 +149,9 @@ export function MetricEditor({
           <Field id="metric-precision" label="Precision">
             {select('precision', PRECISIONS, (value) => precisionLabels[value as keyof typeof precisionLabels])}
           </Field>
-          <Field id="metric-value_type" label="Value type">
-            {select('value_type', VALUE_TYPES, humanise)}
-          </Field>
-          <Field id="metric-unit" label="Unit">
-            {select('unit', METRIC_UNITS, unitLabel)}
-          </Field>
-          <Field id="metric-currency" label="Currency" hint="INR for currency values only.">
-            {select('currency', ['INR'], (value) => value, true)}
-          </Field>
-          <Field id="metric-display_format" label="Display format">
-            {select('display_format', DISPLAY_FORMATS, (value) => value)}
-          </Field>
         </Group>
 
-        {draft.kind === 'calculated' ? (
+        {metric.kind === 'calculated' ? (
           <FormulaEditor
             value={draft.formula}
             onChange={(formula) => update('formula', formula)}
@@ -177,7 +160,7 @@ export function MetricEditor({
             issues={formulaIssues}
           />
         ) : null}
-        {draft.kind === 'legacy_fixed' ? (
+        {metric.kind === 'legacy_fixed' ? (
           <Field id="metric-legacy_method_note" label="Legacy method note" hint="Why the figure cannot be recalculated, and what would unlock it.">
             {text('legacy_method_note', true, true)}
           </Field>
@@ -249,13 +232,9 @@ export function MetricEditor({
 
           <Field
             id="metric-change-reason"
-            label="Change reason"
-            required={reasonFields.length > 0}
-            hint={
-              reasonFields.length > 0
-                ? `Required because ${reasonFields.map(humanise).join(', ').toLowerCase()} changed. Recorded in the version history.`
-                : 'Optional for this change. Recorded in the version history when given.'
-            }
+            label="Change summary"
+            required
+            hint="Required for every edit. Recorded with the new version in the version history."
           >
             <textarea
               id="metric-change-reason"
@@ -269,11 +248,13 @@ export function MetricEditor({
             />
           </Field>
 
+          <p className="text-xs text-ink-soft">Saving creates a new draft version. It does not publish anything to the live site.</p>
+
           {result && !result.ok ? <ErrorMessage error={result.error} /> : null}
 
           <div className="flex flex-wrap gap-2">
             <button type="submit" disabled={saving || changed.length === 0 || reasonMissing || formulaIssues.length > 0} className={buttonClass.primary}>
-              {saving ? 'Saving…' : 'Save changes'}
+              {saving ? 'Saving…' : 'Save draft'}
             </button>
             <button
               type="button"
@@ -291,6 +272,22 @@ export function MetricEditor({
         </div>
       )}
     </form>
+  );
+}
+
+function LockedFacts({ items }: { items: readonly [string, string][] }) {
+  return (
+    <dl className="grid gap-3 sm:col-span-2 sm:grid-cols-3">
+      {items.map(([term, value]) => (
+        <div key={term} className="min-w-0 rounded-card border border-line bg-paper-sunk px-3 py-2">
+          <dt className="flex items-center gap-1 text-xs text-ink-soft">
+            <Lock aria-hidden="true" className="h-3 w-3" />
+            {term}
+          </dt>
+          <dd className="mt-0.5 text-sm text-ink [overflow-wrap:anywhere]">{value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 

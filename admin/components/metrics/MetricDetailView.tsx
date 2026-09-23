@@ -11,14 +11,15 @@ import { formatDateTime } from '@admin/lib/format-date';
 import { verificationStateOf } from '@admin/lib/metrics/changes';
 import type { DataError, DataResult } from '@admin/lib/metrics/errors';
 import { describeFormula } from '@admin/lib/metrics/formula';
-import { kindLabels, precisionLabels, unitLabel, type MetricRow } from '@admin/lib/metrics/model';
+import { humanise, kindLabels, precisionLabels, unitLabel, type MetricRow } from '@admin/lib/metrics/model';
 import type { MetricDetail } from '@admin/lib/metrics/repository';
 import { displayValue, resolveValues } from '@admin/lib/metrics/values';
 
 import { ArchivePanel } from './ArchivePanel';
 import { EvidencePanel } from './EvidencePanel';
-import { ActivityBadge, EvidenceStatusBadge, VerificationBadge } from './MetricBadges';
+import { ActivityBadge, EvidenceStatusBadge, PublishedStateBadge, publishedStateLabels, VerificationBadge } from './MetricBadges';
 import { MetricEditor } from './MetricEditor';
+import { MetricUsagePanel } from './MetricUsagePanel';
 import { useMetricsRepository } from './MetricsRepositoryProvider';
 import { ReviewPanel } from './ReviewPanel';
 import { ErrorMessage, LoadingMessage, SuccessMessage, UnavailableMessage } from './StateMessage';
@@ -136,6 +137,7 @@ export function MetricDetailView() {
           <ActivityBadge archivedAt={metric.archived_at} />
           <EvidenceStatusBadge status={metric.evidence_status} />
           <VerificationBadge state={verificationStateOf(loaded.verification)} />
+          <PublishedStateBadge state={loaded.published} />
         </div>
       </header>
 
@@ -143,20 +145,28 @@ export function MetricDetailView() {
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="min-w-0 space-y-8">
-          <Panel title="Edit metric" description="Fields the backend allows an admin to change. Every save is recorded in the version history and audit log.">
+          <Panel
+            title="Edit metric"
+            description="Fields the backend allows an admin to change. Every save needs a change summary, becomes a new draft version, and is recorded in the audit log. Nothing is published from here."
+          >
             <Surface className="p-4">
               <MetricEditor
                 detail={loaded}
                 onDirtyChange={handleDirty}
                 onSave={(draft, reason) =>
-                  mutate('Metric saved', () => repo.saveMetric(loaded, draft, reason))
+                  mutate('Draft saved as a new version. It is not published.', () => repo.saveMetric(loaded, draft, reason))
                 }
               />
             </Surface>
           </Panel>
 
           <Panel title="Version history" description="Newest first. Recorded by the database; history cannot be edited or deleted.">
-            <VersionHistory metric={metric} versions={loaded.versions} actorLabel={actorLabel} />
+            <VersionHistory
+              metric={metric}
+              versions={loaded.versions}
+              inPublishedSnapshot={loaded.published.state !== 'not_published'}
+              actorLabel={actorLabel}
+            />
           </Panel>
         </div>
 
@@ -168,6 +178,7 @@ export function MetricDetailView() {
                   ['Current value', <span key="value" className="font-semibold">{displayValue(metric, currentValue)}</span>],
                   ['Kind', kindLabels[metric.kind]],
                   ['Unit', unitLabel(metric.unit)],
+                  ['Value type', humanise(metric.value_type)],
                   ['Precision', precisionLabels[metric.precision]],
                   ...(metric.kind === 'calculated'
                     ? ([['Formula', <code key="formula" className="text-xs [overflow-wrap:anywhere]">{describeFormula(metric.formula)}</code>]] as [string, ReactNode][])
@@ -182,6 +193,23 @@ export function MetricDetailView() {
                 </p>
               ) : null}
             </Surface>
+          </Panel>
+
+          <Panel title="Draft vs published" description="Compared with the published snapshot the live site is built from.">
+            <Surface className="space-y-2 p-3 text-sm">
+              <PublishedStateBadge state={loaded.published} />
+              <p className="text-ink-soft">{publishedStateLabels[loaded.published.state].description}</p>
+              {loaded.published.state === 'differs' ? (
+                <p className="text-ink">
+                  <span className="text-ink-soft">Differs in: </span>
+                  {loaded.published.fields.map(humanise).join(', ')}
+                </p>
+              ) : null}
+            </Surface>
+          </Panel>
+
+          <Panel title="Where it is used" description="Documents, linked phrases and formulas that reference this metric. Editing keeps every reference.">
+            <MetricUsagePanel blockers={loaded.blockers} />
           </Panel>
 
           <Panel title="Review" description="Evidence status and verification are separate, recorded actions.">
