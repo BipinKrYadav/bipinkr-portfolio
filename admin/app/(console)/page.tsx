@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 
 import { AuthStatusBadge } from '@admin/components/auth/AuthStatusBadge';
+import { DashboardReleaseCards } from '@admin/components/releases/DashboardReleaseCards';
+import { ReleasesRepositoryProvider } from '@admin/components/releases/ReleasesRepositoryProvider';
 import { DatabaseStatusBadge, StatCard } from '@admin/components/ui/ConnectionState';
 import { DataTable } from '@admin/components/ui/DataTable';
 import { PageHeader } from '@admin/components/ui/PageHeader';
@@ -10,9 +12,8 @@ import { auditColumns } from '@admin/lib/columns';
 
 export const metadata: Metadata = { title: 'Dashboard' };
 
+// Release cards are live (DashboardReleaseCards); these are not read yet.
 const summaryCards = [
-  { label: 'Published release', description: 'The release currently live on bipinkr.in.' },
-  { label: 'Draft changes', description: 'Metric and document edits that have not been published.' },
   {
     label: 'Metrics requiring review',
     description: 'Metrics never verified, changed since verification, or linked to wording that needs review.',
@@ -21,7 +22,6 @@ const summaryCards = [
     label: 'Evidence requiring review',
     description: 'Evidence files due a retention review, or media awaiting redaction confirmation.',
   },
-  { label: 'Last publish', description: 'When the most recent release went live, and who published it.' },
   { label: 'Audit activity', description: 'Recent admin changes recorded in the audit log.' },
 ];
 
@@ -34,6 +34,9 @@ export default function DashboardPage() {
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ReleasesRepositoryProvider>
+          <DashboardReleaseCards />
+        </ReleasesRepositoryProvider>
         {summaryCards.map((card) => (
           <StatCard key={card.label} label={card.label} description={card.description} />
         ))}
@@ -57,7 +60,10 @@ export default function DashboardPage() {
                 { term: 'Database', detail: <DatabaseStatusBadge /> },
                 // Not built yet, which is a different thing from unreachable.
                 { term: 'Private storage', detail: <StatusBadge>Not built yet</StatusBadge> },
-                { term: 'Publishing', detail: <StatusBadge>Not built yet</StatusBadge> },
+                {
+                  term: 'Publishing',
+                  detail: <StatusBadge tone="info">Release workflow; deployment is manual</StatusBadge>,
+                },
               ]}
             />
           </Surface>

@@ -1,5 +1,5 @@
 import { GatewayError } from './errors';
-import type { MetricsGateway, MetricUpdate } from './gateway';
+import type { MetricsGateway, MetricUpdate, PublishedReleaseMetrics } from './gateway';
 import type {
   DocumentReferenceRow,
   EvidenceLinkRow,
@@ -19,6 +19,9 @@ export interface PostgrestGatewayOptions {
   getAccessToken: () => Promise<string | null>;
   fetch?: typeof fetch;
 }
+
+/** Only the metrics of the one published release, not its whole snapshot. */
+export const PUBLISHED_RELEASE_METRICS_PATH = 'releases?select=id,metrics:snapshot->metrics&status=eq.published';
 
 const EVIDENCE_SELECT =
   'metric_id,evidence_file_id,locator,created_at,created_by,' +
@@ -96,6 +99,12 @@ export function createPostgrestGateway(options: PostgrestGatewayOptions): Metric
       request<LinkedPhraseRow[]>(
         `linked_phrases?select=id,location,phrase,reviewed_at&metric_keys=cs.${encodeURIComponent(`{"${metricKey}"}`)}`,
       ),
+
+    async getPublishedReleaseMetrics(): Promise<PublishedReleaseMetrics | null> {
+      const rows = await request<{ id: number; metrics: unknown[] | null }[]>(PUBLISHED_RELEASE_METRICS_PATH);
+      const release = rows[0];
+      return release ? { releaseId: release.id, metrics: release.metrics ?? [] } : null;
+    },
 
     async updateMetric(metricId, expectedUpdatedAt, update: MetricUpdate) {
       const rows = await request<MetricRow[]>(`metrics?id=${eq(metricId)}&updated_at=${eq(expectedUpdatedAt)}`, {

@@ -386,7 +386,9 @@ select test_helpers.expect_error(
 select test_helpers.act_as_owner();
 
 -- ---------------------------------------------------------------------
--- 8. Releases: server-side only, one in progress, legal transitions
+-- 8. Releases: server-side only, one open, legal transitions
+--    (Phase 5C lifecycle; supabase/tests/release_publishing.test.sql covers
+--    the release functions themselves)
 -- ---------------------------------------------------------------------
 
 select test_helpers.act_as('00000000-0000-4000-8000-000000000001', 'aal2');
@@ -394,22 +396,24 @@ select test_helpers.expect_error(
   $$insert into public.releases (summary) values ('from the browser')$$, 'the admin cannot create releases directly');
 select test_helpers.act_as_owner();
 
-insert into public.releases (summary) values ('Release A');
+-- The owner (a trusted role) stands in for the release functions here.
 select test_helpers.expect_error(
-  $$update public.releases set status = 'queued' where summary = 'Release A'$$,
-  'a release cannot be queued without a frozen snapshot');
-update public.releases set status = 'queued', snapshot = '{"schemaVersion":1}', snapshot_sha256 = repeat('c', 64)
- where summary = 'Release A';
+  $$insert into public.releases (summary, base_release_id) values ('No snapshot', null)$$,
+  'a release cannot exist without a frozen snapshot');
+insert into public.releases (summary, snapshot, snapshot_sha256, origin, status, live_at)
+values ('Release A', '{"schemaVersion":1}', repeat('c', 64), 'baseline_import', 'published', now());
+insert into public.releases (summary, snapshot, snapshot_sha256, base_release_id)
+values ('Release B', '{"schemaVersion":1}', repeat('d', 64), (select id from public.releases where summary = 'Release A'));
 select test_helpers.expect_error(
-  $$update public.releases set snapshot = '{"schemaVersion":2}' where summary = 'Release A'$$,
-  'a queued release snapshot is frozen');
+  $$update public.releases set snapshot = '{"schemaVersion":2}' where summary = 'Release B'$$,
+  'a release snapshot is frozen once created');
 select test_helpers.expect_error(
-  $$update public.releases set status = 'live', live_at = now() where summary = 'Release A'$$,
-  'illegal release transitions are rejected (queued → live)');
-insert into public.releases (summary, snapshot, snapshot_sha256) values ('Release B', '{"schemaVersion":1}', repeat('d', 64));
+  $$update public.releases set status = 'published', live_at = now() where summary = 'Release B'$$,
+  'illegal release transitions are rejected (draft → published)');
 select test_helpers.expect_error(
-  $$update public.releases set status = 'queued' where summary = 'Release B'$$,
-  'only one release can be in progress');
+  $$insert into public.releases (summary, snapshot, snapshot_sha256, base_release_id)
+    values ('Release C', '{"schemaVersion":1}', repeat('e', 64), (select id from public.releases where summary = 'Release A'))$$,
+  'only one release can be open');
 
 -- ---------------------------------------------------------------------
 -- 9. Documents and revisions

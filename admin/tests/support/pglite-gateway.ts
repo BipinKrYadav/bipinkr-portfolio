@@ -80,6 +80,13 @@ export function createPgliteGateway(db: PGlite, session: Session): MetricsGatewa
         [metricKey],
       ),
 
+    async getPublishedReleaseMetrics() {
+      const found = await rows<{ releaseId: number; metrics: unknown[] }>(
+        "select jsonb_build_object('releaseId', r.id, 'metrics', r.snapshot -> 'metrics') as row from public.releases r where r.status = 'published'",
+      );
+      return found[0] ?? null;
+    },
+
     async updateMetric(metricId, expectedUpdatedAt, update) {
       // Like PostgREST, pass every supplied column through and let the database decide.
       const entries = Object.entries(update);

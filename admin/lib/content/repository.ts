@@ -83,6 +83,12 @@ export interface ContentRepository {
   getDocumentDetail(docType: string, slug: string): Promise<DataResult<DocumentDetail>>;
   /** Save editorial copy; the database creates the revision atomically. */
   saveDocumentDraft(detail: DocumentDetail, draft: unknown, changeSummary: string): Promise<DataResult<DocumentListRow>>;
+  /**
+   * Discards unpublished edits by saving the published revision's content as
+   * the draft: an ordinary draft save (a new revision with the summary), so no
+   * history is removed and nothing is published.
+   */
+  resetDraftToPublished(detail: DocumentDetail, changeSummary: string): Promise<DataResult<DocumentListRow>>;
 }
 
 /** JSON with object keys sorted, so equal documents compare equal whatever key order jsonb returns. */
@@ -129,7 +135,7 @@ export function matchLinkedPhrases(documentId: string, referencedKeys: ReadonlyS
  * what the session may see (RLS), and an empty result is shown as empty.
  */
 export function createContentRepository(gateway: ContentGateway): ContentRepository {
-  return {
+  const repository: ContentRepository = {
     async listDocuments() {
       let documents: DocumentListRow[];
       let references: CountedRows<{ document_id: string }>;
@@ -216,5 +222,16 @@ export function createContentRepository(gateway: ContentGateway): ContentReposit
         gateway.saveDocumentDraft(detail.document.id, detail.document.updated_at, draft, summary),
       );
     },
+
+    async resetDraftToPublished(detail, changeSummary) {
+      const revisionId = detail.document.published_revision_id;
+      if (!revisionId) return fail('validation', 'This document has no published revision to reset to.');
+      if (detail.draftMatchesPublished === true) return fail('validation', 'The draft already matches the published revision.');
+      const published = await attempt(() => gateway.getRevisionContent(revisionId));
+      if (!published.ok) return published;
+      if (published.data === null) return fail('not_found', 'The published revision could not be read.');
+      return repository.saveDocumentDraft(detail, published.data, changeSummary);
+    },
   };
+  return repository;
 }

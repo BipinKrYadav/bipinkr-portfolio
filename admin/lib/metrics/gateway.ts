@@ -21,6 +21,12 @@ export type MetricUpdate = Partial<Pick<MetricRow, EditableMetricField>> & {
   change_reason?: string;
 };
 
+export interface PublishedReleaseMetrics {
+  releaseId: number;
+  /** Public metric projections, as in the snapshot (lib/snapshot/schema.ts). */
+  metrics: unknown[];
+}
+
 export interface MetricsGateway {
   listMetrics(): Promise<MetricRow[]>;
   getMetricByKey(metricKey: string): Promise<MetricRow | null>;
@@ -31,6 +37,11 @@ export interface MetricsGateway {
   listEvidenceLinks(metricId: string): Promise<EvidenceLinkRow[]>;
   listDocumentReferences(metricId: string): Promise<DocumentReferenceRow[]>;
   listLinkedPhrases(metricKey: string): Promise<LinkedPhraseRow[]>;
+  /**
+   * The metrics of the published release (its snapshot is the published
+   * baseline), or null while no release is published (Phase 5C).
+   */
+  getPublishedReleaseMetrics(): Promise<PublishedReleaseMetrics | null>;
   /**
    * Updates one metric if it still has `expectedUpdatedAt` (optimistic
    * concurrency). Returns the updated row, or null when no row matched.

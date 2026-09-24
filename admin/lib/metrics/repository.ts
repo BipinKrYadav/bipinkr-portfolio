@@ -2,6 +2,7 @@ import {
   archiveBlockerMessages,
   archiveBlockers,
   diffMetric,
+  draftFromMetric,
   requiresChangeReason,
   versionEntries,
   type ArchiveBlockers,
@@ -12,7 +13,14 @@ import { fail, ok, toDataError, type DataResult } from './errors';
 import { validateFormula } from './formula';
 import type { MetricsGateway } from './gateway';
 import type { EvidenceLinkRow, EvidenceStatus, MetricRow, MetricVerificationRow } from './model';
-import { comparePublished, type PublishedBaselineIndex, type PublishedState } from './published-baseline';
+import {
+  buildPublishedBaseline,
+  comparePublished,
+  publishedEditableFields,
+  type PublishedBaselineIndex,
+  type PublishedState,
+  type SnapshotMetric,
+} from './published-baseline';
 import { snapshotReferencesFor, type SnapshotReferenceIndex } from './snapshot-references';
 
 export interface MetricsOverview {
@@ -31,6 +39,14 @@ export interface MetricDetail {
   blockers: ArchiveBlockers;
   /** The working copy against the published snapshot (the live site). */
   published: PublishedState;
+  /**
+   * What "published" was compared with: the published release in the
+   * database (Phase 5C), or, before any release exists, the snapshot this
+   * admin build was made from.
+   */
+  publishedSource: { kind: 'release'; releaseId: number } | { kind: 'build_snapshot' };
+  /** The metric as the published release shows it, when a release is published and contains it. */
+  publishedMetric: SnapshotMetric | null;
 }
 
 export interface MetricsRepository {
@@ -40,6 +56,11 @@ export interface MetricsRepository {
   setEvidenceStatus(metric: MetricRow, status: EvidenceStatus, reason: string): Promise<DataResult<MetricRow>>;
   confirmVerification(metric: MetricRow, note: string): Promise<DataResult<MetricRow>>;
   archiveMetric(detail: MetricDetail, reason: string): Promise<DataResult<MetricRow>>;
+  /**
+   * Writes the published values back into the draft: an ordinary save (a new
+   * version with the summary), so no history is removed and nothing is published.
+   */
+  resetToPublished(detail: MetricDetail, changeReason: string): Promise<DataResult<MetricRow>>;
 }
 
 async function attempt<T>(operation: () => Promise<T>): Promise<DataResult<T>> {
@@ -64,7 +85,7 @@ export function createMetricsRepository(
   snapshotReferences: SnapshotReferenceIndex,
   publishedBaseline: PublishedBaselineIndex,
 ): MetricsRepository {
-  return {
+  const repository: MetricsRepository = {
     listMetrics: () =>
       attempt(async () => {
         const [metrics, verification] = await Promise.all([gateway.listMetrics(), gateway.listVerification()]);
@@ -73,8 +94,13 @@ export function createMetricsRepository(
 
     async getMetricDetail(metricKey) {
       const loaded = await attempt(async () => {
-        const [metric, metrics] = await Promise.all([gateway.getMetricByKey(metricKey), gateway.listMetrics()]);
+        const [metric, metrics, publishedRelease] = await Promise.all([
+          gateway.getMetricByKey(metricKey),
+          gateway.listMetrics(),
+          gateway.getPublishedReleaseMetrics(),
+        ]);
         if (!metric) return null;
+        const releaseMetrics = (publishedRelease?.metrics ?? []) as SnapshotMetric[];
         const [verification, versions, evidence, documentReferences, linkedPhrases] = await Promise.all([
           gateway.getVerification(metric.id),
           gateway.listVersions(metric.id),
@@ -95,7 +121,14 @@ export function createMetricsRepository(
             linkedPhrases,
             snapshotReferencesFor(snapshotReferences, metric.metric_key),
           ),
-          published: comparePublished(metric, publishedBaseline),
+          published: comparePublished(
+            metric,
+            publishedRelease ? buildPublishedBaseline({ metrics: releaseMetrics }) : publishedBaseline,
+          ),
+          publishedSource: publishedRelease
+            ? ({ kind: 'release', releaseId: publishedRelease.releaseId } as const)
+            : ({ kind: 'build_snapshot' } as const),
+          publishedMetric: releaseMetrics.find((item) => item.id === metric.metric_key) ?? null,
         };
       });
       if (!loaded.ok) return loaded;
@@ -135,6 +168,20 @@ export function createMetricsRepository(
       return fail('not_found', 'This metric no longer exists or you cannot access it.');
     },
 
+    async resetToPublished(detail, changeReason) {
+      if (!detail.publishedMetric) {
+        return fail('validation', 'There is no published release version of this metric to reset to.');
+      }
+      if (detail.publishedMetric.kind !== detail.metric.kind) {
+        return fail('validation', 'The published metric has a different kind; it cannot be restored by editing.');
+      }
+      const draft = { ...draftFromMetric(detail.metric), ...publishedEditableFields(detail.publishedMetric) } as MetricDraft;
+      if (Object.keys(diffMetric(detail.metric, draft)).length === 0) {
+        return fail('validation', 'The draft already matches the published release.');
+      }
+      return repository.saveMetric(detail, draft, changeReason);
+    },
+
     async setEvidenceStatus(metric, status, reason) {
       if (!reason.trim()) return fail('validation', 'A reason is required to change the evidence status.');
       if (metric.evidence_status === status) return fail('validation', 'The metric already has this evidence status.');
@@ -156,4 +203,5 @@ export function createMetricsRepository(
       return attempt(() => gateway.archiveMetric(detail.metric.id, reason.trim() || null));
     },
   };
+  return repository;
 }

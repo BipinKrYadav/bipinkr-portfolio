@@ -12,6 +12,7 @@ import { Notice } from '@admin/components/ui/Notice';
 import { DefinitionList, Panel, Surface } from '@admin/components/ui/Panel';
 import { StatusBadge } from '@admin/components/ui/StatusBadge';
 import { DocumentDraftEditor } from './DocumentDraftEditor';
+import { DocumentResetPanel } from './DocumentResetPanel';
 import { metricDetailHref } from '@admin/lib/content/links';
 import { documentStatusLabels, type DocumentRevisionRow, type DocumentStatus } from '@admin/lib/content/model';
 import type { DocumentDetail, DocumentReferenceEntry, LinkedPhraseMatch } from '@admin/lib/content/repository';
@@ -38,8 +39,9 @@ const referenceColumns = [
 
 /**
  * Document detail for an MFA-verified admin: editable draft copy plus the
- * published revision metadata, metric references and linked phrases. Publishing,
- * status changes, slug changes, review and deletion remain unavailable here.
+ * published revision metadata, metric references and linked phrases. Publishing
+ * happens only through Releases; status changes, slug changes, review and
+ * deletion remain unavailable here.
  */
 export function DocumentDetailView() {
   const params = useSearchParams();
@@ -254,6 +256,19 @@ export function DocumentDetailView() {
               <p className="border-t border-line px-3 py-2 text-xs text-ink-faint">
                 Compared structurally in your browser. The content itself is not displayed.
               </p>
+              <DocumentResetPanel
+                detail={detail}
+                blockedReason={dirty ? 'Save or discard your edits before resetting.' : null}
+                onReset={async (summary) => {
+                  setNotice(null);
+                  const reset = await repositoryState.repository.resetDraftToPublished(detail, summary);
+                  if (reset.ok) {
+                    setNotice('Draft reset to the published revision, saved as a new revision. It is not published.');
+                    await load();
+                  }
+                  return reset;
+                }}
+              />
             </Surface>
           </Panel>
         </aside>
