@@ -10,9 +10,12 @@ import {
   draftFromMetric,
   hasDatabaseBlockers,
   hasSnapshotBlockers,
+  metricUsage,
+  reasonRequiredFields,
   requiresChangeReason,
   verificationStateOf,
   versionEntries,
+  versionPublication,
 } from '../lib/metrics/changes';
 import {
   buildSnapshotReferenceIndex,
@@ -21,7 +24,8 @@ import {
 } from '../lib/metrics/snapshot-references';
 import { GatewayError, toDataError } from '../lib/metrics/errors';
 import { describeFormula, parseFormula, validateFormula, type FormulaContextMetric } from '../lib/metrics/formula';
-import { EDITABLE_METRIC_FIELDS, type MetricRow, type MetricVersionRow } from '../lib/metrics/model';
+import { EDITABLE_METRIC_FIELDS, LOCKED_METRIC_FIELDS, type MetricRow, type MetricVersionRow } from '../lib/metrics/model';
+import { buildPublishedBaseline, comparePublished, PUBLISHED_FIELDS, type SnapshotMetric } from '../lib/metrics/published-baseline';
 import { resolveValues } from '../lib/metrics/values';
 
 /** Pure metric-editing rules: no database involved. */
@@ -84,13 +88,100 @@ describe('edit form fields', () => {
     assert.deepEqual(diffMetric(original, draft), { value: 120 });
   });
 
-  test('a change reason is required for value, kind, formula and precision only', () => {
+  test('every change needs a change summary; only the figure fields make a source check stale', () => {
     assert.equal(requiresChangeReason({ value: 1 }), true);
-    assert.equal(requiresChangeReason({ kind: 'legacy_fixed' }), true);
     assert.equal(requiresChangeReason({ formula: { fn: 'sum', terms: ['a.b'] } }), true);
     assert.equal(requiresChangeReason({ precision: 'lower_bound' }), true);
-    assert.equal(requiresChangeReason({ description: 'New wording' }), false);
+    assert.equal(requiresChangeReason({ description: 'New wording' }), true);
     assert.equal(requiresChangeReason({}), false);
+    assert.deepEqual(reasonRequiredFields({ value: 1, description: 'x' }), ['value']);
+  });
+
+  test('the structural fields are locked: never editable, never in a diff', () => {
+    for (const field of LOCKED_METRIC_FIELDS) {
+      assert.ok(!(EDITABLE_METRIC_FIELDS as readonly string[]).includes(field), `${field} must not be editable`);
+    }
+    const original = metric();
+    const draft = { ...draftFromMetric(original), kind: 'legacy_fixed', unit: 'click', currency: null, display_format: 'percent' };
+    assert.deepEqual(diffMetric(original, draft), {});
+  });
+});
+
+describe('draft vs published', () => {
+  const snapshotMetric = (overrides: Partial<SnapshotMetric> = {}): SnapshotMetric => ({
+    id: 'fixture.lead.spend',
+    name: 'Spend quoted by a private label',
+    description: 'Total spend.',
+    kind: 'raw',
+    valueType: 'currency',
+    unit: 'inr',
+    currency: 'INR',
+    value: 100,
+    precision: 'exact',
+    displayFormat: 'inr',
+    formula: null,
+    evidenceStatus: 'documented',
+    dataOrigin: 'platform',
+    sourcePlatform: 'meta_ads',
+    sourceType: 'platform_export',
+    legacyMethodNote: null,
+    reportingPeriod: { basis: 'not_recorded', start: null, end: null, description: 'Not recorded.' },
+    ...overrides,
+  });
+  const row = (overrides: Partial<MetricRow> = {}) =>
+    metric({ name: 'Spend quoted by a private label', description: 'Total spend.', value: 100, reporting_period_note: 'Not recorded.', ...overrides });
+
+  test('the index holds fingerprints only: no name, description or figure is carried into the build', () => {
+    const index = buildPublishedBaseline({ metrics: [snapshotMetric()] });
+    const serialised = JSON.stringify(index);
+    assert.equal(index['fixture.lead.spend'].length, PUBLISHED_FIELDS.length);
+    for (const text of ['private label', 'Total spend', 'Not recorded']) assert.ok(!serialised.includes(text), text);
+  });
+
+  test('an unchanged metric matches; a changed one differs in exactly those fields; an unknown one is not published', () => {
+    const index = buildPublishedBaseline({ metrics: [snapshotMetric()] });
+    assert.deepEqual(comparePublished(row(), index), { state: 'matches' });
+    assert.deepEqual(comparePublished(row({ value: 120, description: 'New.' }), index), { state: 'differs', fields: ['description', 'value'] });
+    assert.deepEqual(comparePublished(row({ metric_key: 'fixture.lead.new' }), index), { state: 'not_published' });
+  });
+
+  test('numeric strings and reordered formula keys compare equal; private fields are not compared', () => {
+    const formula = { fn: 'ratio', numerator: 'a.b.c', denominator: 'a.b.d' };
+    const index = buildPublishedBaseline({ metrics: [snapshotMetric({ formula })] });
+    const reordered = { denominator: 'a.b.d', numerator: 'a.b.c', fn: 'ratio' };
+    assert.deepEqual(comparePublished(row({ value: '100' as unknown as number, formula: reordered, internal_note: 'private', source_reference: 'x' }), index), {
+      state: 'matches',
+    });
+  });
+
+  test('versions: a release link means published, the first version of a snapshot metric is the baseline, the rest are drafts', () => {
+    assert.deepEqual(versionPublication({ changeKind: 'update', releaseId: 4 }, true), { state: 'published', releaseId: 4 });
+    assert.deepEqual(versionPublication({ changeKind: 'insert', releaseId: null }, true), { state: 'baseline' });
+    assert.deepEqual(versionPublication({ changeKind: 'insert', releaseId: null }, false), { state: 'draft' });
+    assert.deepEqual(versionPublication({ changeKind: 'update', releaseId: null }, true), { state: 'draft' });
+  });
+
+  test('usage splits case studies from other documents and keeps where each use is recorded', () => {
+    const usage = metricUsage({
+      formulas: ['a.b.cpl'],
+      documentReferences: [
+        { documentType: 'case_study', slug: 'one', fieldPath: 'summary' },
+        { documentType: 'homepage', slug: 'home', fieldPath: 'hero' },
+      ],
+      linkedPhrases: [{ location: 'home', phrase: 'a few' }],
+      snapshotDocuments: [{ documentType: 'case_study', slug: 'two' }],
+      snapshotLinkedPhrases: [],
+    });
+    assert.deepEqual(
+      usage.caseStudies.map((ref) => [ref.slug, ref.fieldPath, ref.source]),
+      [
+        ['one', 'summary', 'database'],
+        ['two', null, 'published_snapshot'],
+      ],
+    );
+    assert.deepEqual(usage.otherDocuments.map((ref) => ref.slug), ['home']);
+    assert.deepEqual(usage.linkedPhrases, [{ location: 'home', phrase: 'a few', source: 'database' }]);
+    assert.deepEqual(usage.formulas, ['a.b.cpl']);
   });
 });
 

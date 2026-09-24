@@ -5,14 +5,16 @@ import { after, before, beforeEach, describe, test } from 'node:test';
 
 import type { PGlite } from '@electric-sql/pglite';
 
-import { draftFromMetric } from '../lib/metrics/changes';
+import { draftFromMetric, metricUsage, versionPublication } from '../lib/metrics/changes';
 import { GatewayError } from '../lib/metrics/errors';
 import type { MetricsGateway } from '../lib/metrics/gateway';
+import { buildPublishedBaseline, comparePublished, type PublishedBaselineIndex } from '../lib/metrics/published-baseline';
 import {
   DATA_ORIGINS,
   DISPLAY_FORMATS,
   EDITABLE_METRIC_FIELDS,
   EVIDENCE_STATUSES,
+  LOCKED_METRIC_FIELDS,
   METRIC_KINDS,
   METRIC_UNITS,
   PERIOD_BASES,
@@ -23,7 +25,7 @@ import {
   type MetricRow,
 } from '../lib/metrics/model';
 import { createMetricsRepository, type MetricsRepository } from '../lib/metrics/repository';
-import type { SnapshotReferenceIndex } from '../lib/metrics/snapshot-references';
+import { buildSnapshotReferenceIndex, type SnapshotReferenceIndex, type SnapshotReferenceSource } from '../lib/metrics/snapshot-references';
 import { resolveValues } from '../lib/metrics/values';
 
 import {
@@ -53,6 +55,7 @@ let repository: MetricsRepository;
 // The fixtures are not in the published snapshot, so these tests run with an
 // empty snapshot index; the snapshot guard has its own tests below.
 const NO_SNAPSHOT_REFERENCES: SnapshotReferenceIndex = {};
+const NO_PUBLISHED_BASELINE: PublishedBaselineIndex = {};
 
 const FIXTURES = [
   { metric_key: 'fixture.lead.spend', kind: 'raw', value: 300, evidence_status: 'documented' },
@@ -67,7 +70,7 @@ before(async () => {
   db = await createDatabase();
   await insertMetrics(db, FIXTURES);
   gateway = createPgliteGateway(db, ADMIN_SESSION);
-  repository = createMetricsRepository(gateway, NO_SNAPSHOT_REFERENCES);
+  repository = createMetricsRepository(gateway, NO_SNAPSHOT_REFERENCES, NO_PUBLISHED_BASELINE);
 });
 
 after(async () => {
@@ -114,13 +117,16 @@ describe('schema alignment', () => {
     }
   });
 
-  test('the editable fields are exactly the columns the backend lets an admin update', async () => {
+  test('the editable fields are exactly the columns the backend lets an admin update, and no locked field is one', async () => {
     const granted = await db.query<{ column_name: string }>(
       `select column_name from information_schema.column_privileges
        where grantee = 'authenticated' and table_schema = 'public' and table_name = 'metrics' and privilege_type = 'UPDATE'`,
     );
-    const expected = [...EDITABLE_METRIC_FIELDS, 'change_reason'].sort();
+    const expected: string[] = [...EDITABLE_METRIC_FIELDS, 'change_reason'].sort();
     assert.deepEqual(granted.rows.map((row) => row.column_name).sort(), expected);
+    for (const field of LOCKED_METRIC_FIELDS) {
+      assert.ok(!expected.includes(field), `${field} must not be updatable`);
+    }
   });
 });
 
@@ -184,11 +190,24 @@ describe('editing', () => {
     assert.equal((await load('fixture.lead.spare')).value, 8);
   });
 
-  test('a change that needs no reason saves without one', async () => {
+  test('every edit needs a change summary, in the editor layer and in the database, even for wording', async () => {
     const detail = await detailOf('fixture.lead.spare');
-    const result = await repository.saveMetric(detail, { ...draftFromMetric(detail.metric), public_note: 'Rounded on the site.' }, '');
-    assert.ok(result.ok);
-    assert.equal(result.data.public_note, 'Rounded on the site.');
+    const draft = { ...draftFromMetric(detail.metric), public_note: 'Rounded on the site.' };
+    const missing = await repository.saveMetric(detail, draft, '   ');
+    assert.equal(missing.ok ? null : missing.error.kind, 'validation');
+    assert.match(missing.ok ? '' : missing.error.message, /change summary is required/);
+
+    const metric = await load('fixture.lead.spare');
+    assert.equal(await databaseRejects(gateway.updateMetric(metric.id, metric.updated_at, { public_note: 'x' })), 'P0001');
+    assert.equal(await databaseRejects(gateway.updateMetric(metric.id, metric.updated_at, { public_note: 'x', change_reason: ' ' })), 'P0001');
+    assert.equal((await load('fixture.lead.spare')).public_note, null);
+
+    const saved = await repository.saveMetric(detail, draft, 'Say the site rounds it');
+    assert.ok(saved.ok, saved.ok ? '' : saved.error.message);
+    assert.equal(saved.data.public_note, 'Rounded on the site.');
+    const latest = (await detailOf('fixture.lead.spare')).versions[0];
+    assert.equal(latest.reason, 'Say the site rounds it');
+    assert.deepEqual(latest.otherFields, ['public_note']);
   });
 
   test('the metric key cannot be changed through the data layer', async () => {
@@ -200,18 +219,119 @@ describe('editing', () => {
 
   test('an edit based on a stale copy is rejected as a conflict', async () => {
     const stale = await detailOf('fixture.lead.spare');
-    const first = await repository.saveMetric(stale, { ...draftFromMetric(stale.metric), description: 'First edit.' }, '');
+    const first = await repository.saveMetric(stale, { ...draftFromMetric(stale.metric), description: 'First edit.' }, 'First edit');
     assert.ok(first.ok);
-    const second = await repository.saveMetric(stale, { ...draftFromMetric(stale.metric), description: 'Second edit.' }, '');
+    const second = await repository.saveMetric(stale, { ...draftFromMetric(stale.metric), description: 'Second edit.' }, 'Second edit');
     assert.equal(second.ok ? null : second.error.kind, 'conflict');
     assert.equal((await load('fixture.lead.spare')).description, 'First edit.');
   });
 
   test('a database rule violation comes back as a readable validation error', async () => {
     const detail = await detailOf('fixture.lead.spare');
-    const result = await repository.saveMetric(detail, { ...draftFromMetric(detail.metric), currency: null, value_type: 'currency' }, '');
+    const draft = { ...draftFromMetric(detail.metric), reporting_period_start: '2026-03-01', reporting_period_end: '2026-02-01' };
+    const result = await repository.saveMetric(detail, draft, 'Record the period');
     assert.equal(result.ok ? null : result.error.kind, 'validation');
-    assert.match(result.ok ? '' : result.error.message, /Currency must be INR/);
+    assert.equal(result.ok ? '' : result.error.message, 'The reporting period cannot end before it starts.');
+  });
+});
+
+describe('safe editing (Phase 5B)', () => {
+  test('saving the same values is refused as a no-op, and no version is created', async () => {
+    const detail = await detailOf('fixture.lead.spare');
+    const result = await repository.saveMetric(detail, draftFromMetric(detail.metric), 'Nothing really');
+    assert.equal(result.ok ? null : result.error.message, 'There are no changes to save.');
+
+    // The database refuses a no-op too, even with a summary.
+    const metric = detail.metric;
+    assert.equal(
+      await databaseRejects(gateway.updateMetric(metric.id, metric.updated_at, { description: metric.description, change_reason: 'Same text' })),
+      'P0001',
+    );
+    assert.equal((await detailOf('fixture.lead.spare')).versions.length, detail.versions.length);
+  });
+
+  test('kind, value type, unit, currency and display format are locked in the database', async () => {
+    const metric = await load('fixture.lead.spare');
+    const otherFormat = DISPLAY_FORMATS.find((format) => format !== metric.display_format);
+    const attempts = [{ kind: 'legacy_fixed' }, { value_type: 'percent' }, { unit: 'click' }, { currency: 'INR' }, { display_format: otherFormat }];
+    for (const update of attempts) {
+      const code = await databaseRejects(gateway.updateMetric(metric.id, metric.updated_at, { ...update, change_reason: 'Try it' } as never));
+      assert.equal(code, '42501', JSON.stringify(update));
+    }
+    const unchanged = await load('fixture.lead.spare');
+    for (const field of LOCKED_METRIC_FIELDS) assert.deepEqual(unchanged[field], metric[field], field);
+    assert.equal(unchanged.updated_at, metric.updated_at);
+  });
+
+  test('the editor layer never sends a locked field, even if the draft carries one', async () => {
+    const detail = await detailOf('fixture.lead.spare');
+    const draft = { ...draftFromMetric(detail.metric), kind: 'legacy_fixed', unit: 'click', description: 'Locked fields ignored.' };
+    const result = await repository.saveMetric(detail, draft, 'Wording only');
+    assert.ok(result.ok, result.ok ? '' : result.error.message);
+    assert.equal(result.data.kind, 'raw');
+    assert.equal(result.data.unit, 'lead');
+    assert.equal(result.data.description, 'Locked fields ignored.');
+  });
+
+  test('an archived metric cannot be edited, in the editor layer or in the database', async () => {
+    const detail = await detailOf('fixture.lead.retired');
+    const result = await repository.saveMetric(detail, { ...draftFromMetric(detail.metric), description: 'Revived.' }, 'Revive');
+    assert.equal(result.ok ? null : result.error.message, 'This metric is archived and cannot be edited.');
+    assert.equal(
+      await databaseRejects(gateway.updateMetric(detail.metric.id, detail.metric.updated_at, { description: 'Revived.', change_reason: 'Revive' })),
+      'P0001',
+    );
+    assert.equal((await load('fixture.lead.retired')).description, 'Fixture metric.');
+  });
+
+  test('each save is a new immutable version; earlier versions keep their content', async () => {
+    const before = await detailOf('fixture.lead.spare');
+    const saved = await repository.saveMetric(before, { ...draftFromMetric(before.metric), value: 9 }, 'Recount');
+    assert.ok(saved.ok);
+    const after = await detailOf('fixture.lead.spare');
+    assert.equal(after.versions.length, before.versions.length + 1);
+    assert.equal(after.versions[0].number, before.versions[0].number + 1);
+    assert.deepEqual(after.versions.slice(1), before.versions, 'older versions are unchanged');
+    assert.equal(after.versions[0].releaseId, null, 'a save never publishes');
+  });
+
+  test('document references and linked phrases survive an edit and stay visible as usage', async () => {
+    const metric = await load('fixture.lead.leads');
+    const document = await db.query<{ id: string }>(
+      "insert into public.documents (doc_type, slug, schema_version, draft) values ('case_study', 'fixture-usage', 1, '{}') returning id",
+    );
+    await runAs(db, ADMIN_SESSION, async (tx) => {
+      await tx.query('insert into public.document_metric_refs (document_id, field_path, metric_id) values ($1, $2, $3)', [
+        document.rows[0].id,
+        'summary.headline',
+        metric.id,
+      ]);
+      await tx.query("insert into public.linked_phrases (location, phrase, metric_keys, reason) values ('home hero', 'four leads', $1, 'r')", [
+        [metric.metric_key],
+      ]);
+    });
+
+    const detail = await detailOf('fixture.lead.leads');
+    const saved = await repository.saveMetric(detail, { ...draftFromMetric(detail.metric), description: 'Leads from the form.' }, 'Clearer wording');
+    assert.ok(saved.ok, saved.ok ? '' : saved.error.message);
+
+    const after = await detailOf('fixture.lead.leads');
+    assert.deepEqual(after.blockers.documentReferences, [{ documentType: 'case_study', slug: 'fixture-usage', fieldPath: 'summary.headline' }]);
+    assert.deepEqual(after.blockers.linkedPhrases, [{ location: 'home hero', phrase: 'four leads' }]);
+    const usage = metricUsage(after.blockers);
+    assert.deepEqual(usage.caseStudies.map((ref) => ref.slug), ['fixture-usage']);
+    assert.deepEqual(usage.otherDocuments, []);
+    assert.deepEqual(usage.linkedPhrases.map((phrase) => phrase.phrase), ['four leads']);
+    assert.deepEqual(usage.formulas, ['fixture.lead.cpl']);
+
+    // Archive protection still holds after the edit.
+    assert.equal(await databaseRejects(gateway.archiveMetric(metric.id, null)), 'P0001');
+  });
+
+  test('a metric the published snapshot does not contain is labelled not published; its versions are drafts', async () => {
+    const detail = await detailOf('fixture.lead.spare');
+    assert.deepEqual(detail.published, { state: 'not_published' });
+    assert.ok(detail.versions.every((entry) => versionPublication(entry, false).state === 'draft'));
   });
 });
 
@@ -358,12 +478,16 @@ describe('archiving', () => {
 
   test('a metric used by the published snapshot is not archived by the admin, though the database alone would allow it', async () => {
     await insertMetrics(db, [{ metric_key: 'fixture.snapshot.used', kind: 'raw', value: 5 }]);
-    const guarded = createMetricsRepository(gateway, {
-      'fixture.snapshot.used': {
-        documents: [{ documentType: 'case_study', slug: 'meta-lead-generation' }],
-        linkedPhrases: [{ location: 'home › hero', phrase: 'five campaigns' }],
+    const guarded = createMetricsRepository(
+      gateway,
+      {
+        'fixture.snapshot.used': {
+          documents: [{ documentType: 'case_study', slug: 'meta-lead-generation' }],
+          linkedPhrases: [{ location: 'home › hero', phrase: 'five campaigns' }],
+        },
       },
-    });
+      NO_PUBLISHED_BASELINE,
+    );
 
     const loaded = await guarded.getMetricDetail('fixture.snapshot.used');
     assert.ok(loaded.ok, loaded.ok ? '' : loaded.error.message);
@@ -508,7 +632,9 @@ describe('dependency-aware verification', () => {
 
 describe('access control', () => {
   test('a signed-in non-admin sees no metrics and cannot change any', async () => {
-    const outsider = createMetricsRepository(createPgliteGateway(db, NON_ADMIN_SESSION), NO_SNAPSHOT_REFERENCES);
+    const outsider = createMetricsRepository(createPgliteGateway(db, NON_ADMIN_SESSION), NO_SNAPSHOT_REFERENCES, NO_PUBLISHED_BASELINE);
+    const hidden = await outsider.getMetricDetail('fixture.lead.spare');
+    assert.equal(hidden.ok ? null : hidden.error.kind, 'not_found', 'the detail page shows nothing to a non-admin');
     const list = await outsider.listMetrics();
     assert.ok(list.ok);
     assert.equal(list.data.metrics.length, 0);
@@ -529,7 +655,7 @@ describe('access control', () => {
   });
 
   test('an unauthenticated caller is denied outright', async () => {
-    const anonymous = createMetricsRepository(createPgliteGateway(db, ANON_SESSION), NO_SNAPSHOT_REFERENCES);
+    const anonymous = createMetricsRepository(createPgliteGateway(db, ANON_SESSION), NO_SNAPSHOT_REFERENCES, NO_PUBLISHED_BASELINE);
     const list = await anonymous.listMetrics();
     assert.equal(list.ok ? null : list.error.kind, 'permission_denied');
     const metric = await load('fixture.lead.spare');
@@ -560,7 +686,7 @@ describe('published snapshot', () => {
         dataOrigin: string; sourcePlatform: string | null; sourceType: string; legacyMethodNote: string | null;
         reportingPeriod: { basis: string; start: string | null; end: string | null; description: string };
       }[];
-    };
+    } & SnapshotReferenceSource;
 
     // Insert inputs before the formulas that read them.
     const pending = [...baseline.metrics];
@@ -588,8 +714,34 @@ describe('published snapshot', () => {
       inserted.add(metric.id);
     }
 
-    const rows = await createPgliteGateway(snapshotDb, ADMIN_SESSION).listMetrics();
+    const snapshotGateway = createPgliteGateway(snapshotDb, ADMIN_SESSION);
+    const rows = await snapshotGateway.listMetrics();
     assert.equal(rows.length, baseline.metrics.length);
+
+    // Draft vs published: the imported rows are exactly the published baseline.
+    const published = buildPublishedBaseline(baseline);
+    for (const row of rows) assert.deepEqual(comparePublished(row, published), { state: 'matches' }, row.metric_key);
+
+    // An edit makes the working copy a draft that differs, in exactly the edited field.
+    const snapshotRepository = createMetricsRepository(snapshotGateway, buildSnapshotReferenceIndex(baseline), published);
+    const target = rows.find((row) => row.kind === 'raw' && !row.archived_at);
+    assert.ok(target);
+    const detail = await snapshotRepository.getMetricDetail(target.metric_key);
+    assert.ok(detail.ok, detail.ok ? '' : detail.error.message);
+    assert.deepEqual(detail.data.published, { state: 'matches' });
+    assert.equal(versionPublication(detail.data.versions[0], true).state, 'baseline');
+    const saved = await snapshotRepository.saveMetric(detail.data, { ...draftFromMetric(detail.data.metric), description: 'Draft wording.' }, 'Try new wording');
+    assert.ok(saved.ok, saved.ok ? '' : saved.error.message);
+    const edited = await snapshotRepository.getMetricDetail(target.metric_key);
+    assert.ok(edited.ok);
+    assert.deepEqual(edited.data.published, { state: 'differs', fields: ['description'] });
+    assert.equal(versionPublication(edited.data.versions[0], true).state, 'draft');
+    assert.equal(versionPublication(edited.data.versions[1], true).state, 'baseline');
+
+    // Restoring the published wording brings it back in line (as a version of its own).
+    const restored = await snapshotRepository.saveMetric(edited.data, { ...draftFromMetric(edited.data.metric), description: target.description }, 'Restore');
+    assert.ok(restored.ok);
+    assert.deepEqual(comparePublished(restored.data, published), { state: 'matches' });
 
     const { metricValue } = await import('../../lib/metrics/registry');
     const values = resolveValues(rows);

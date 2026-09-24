@@ -132,6 +132,9 @@ export function MetricsList() {
                   </th>
                 ),
               )}
+              <th scope="col" className="px-3 py-2">
+                <span className="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -160,11 +163,20 @@ export function MetricsList() {
                 <td className="px-3 py-2">
                   <ActivityBadge archivedAt={metric.archived_at} />
                 </td>
+                <td className="whitespace-nowrap px-3 py-2 text-right">
+                  <Link
+                    href={metricHref(metric.metric_key)}
+                    aria-label={`View ${metric.metric_key}`}
+                    className="text-xs font-semibold text-accent underline-offset-2 hover:underline"
+                  >
+                    View
+                  </Link>
+                </td>
               </tr>
             ))}
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-sm text-ink-soft" role="status">
+                <td colSpan={10} className="px-4 py-8 text-center text-sm text-ink-soft" role="status">
                   {all.length === 0 ? 'The database has no metrics yet.' : 'No metrics match these filters.'}
                 </td>
               </tr>

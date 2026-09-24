@@ -260,17 +260,19 @@ select test_helpers.expect(
   'a later edit leaves status and verification untouched, so the change since verification is visible');
 
 -- Defence in depth: even if a future migration granted these columns, the trigger still refuses.
+-- Each statement carries a change summary, so it passes the Phase 5B draft-save
+-- guard and is refused by metrics_guard itself, which is what this block tests.
 select test_helpers.act_as_owner();
 grant update (evidence_status, verified_value, metric_key) on public.metrics to authenticated;
 select test_helpers.act_as('00000000-0000-4000-8000-000000000001', 'aal2');
 select test_helpers.expect_error(
-  $$update public.metrics set evidence_status = 'reported' where metric_key = 'test.fixture.spend'$$,
+  $$update public.metrics set evidence_status = 'reported', change_reason = 'test' where metric_key = 'test.fixture.spend'$$,
   'the trigger refuses direct evidence status writes');
 select test_helpers.expect_error(
-  $$update public.metrics set verified_value = 1 where metric_key = 'test.fixture.spend'$$,
+  $$update public.metrics set verified_value = 1, change_reason = 'test' where metric_key = 'test.fixture.spend'$$,
   'the trigger refuses direct verification writes');
 select test_helpers.expect_error(
-  $$update public.metrics set metric_key = 'test.fixture.renamed' where metric_key = 'test.fixture.leads'$$,
+  $$update public.metrics set metric_key = 'test.fixture.renamed', change_reason = 'test' where metric_key = 'test.fixture.leads'$$,
   'the trigger refuses metric key changes');
 select test_helpers.act_as_owner();
 revoke update (evidence_status, verified_value, metric_key) on public.metrics from authenticated;

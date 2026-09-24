@@ -41,7 +41,8 @@ export function reasonRequiredFields(patch: MetricPatch): EditableMetricField[] 
   return REASON_REQUIRED_FIELDS.filter((field) => field in patch);
 }
 
-export const requiresChangeReason = (patch: MetricPatch): boolean => reasonRequiredFields(patch).length > 0;
+/** Phase 5B: every edit that changes something needs a change summary (enforced by the database too). */
+export const requiresChangeReason = (patch: MetricPatch): boolean => Object.keys(patch).length > 0;
 
 // ---------------------------------------------------------------------------
 // Version history
@@ -70,6 +71,8 @@ export interface VersionEntry {
   /** Other fields that changed (descriptions, sources, notes). */
   otherFields: string[];
   verifiedValue: number | null;
+  /** The release that published this version; null until a publish pipeline links it. */
+  releaseId: number | null;
 }
 
 /** Numbered entries, newest first. */
@@ -105,9 +108,28 @@ export function versionEntries(rows: readonly MetricVersionRow[]): VersionEntry[
         changes,
         otherFields,
         verifiedValue: (after.verified_value as number | null | undefined) ?? null,
+        releaseId: row.release_id,
       };
     })
     .reverse();
+}
+
+export type VersionPublication =
+  /** Linked to a release by a publish pipeline. */
+  | { state: 'published'; releaseId: number }
+  /** The first version of a metric the published snapshot contains: it was imported from the live site. */
+  | { state: 'baseline' }
+  /** Recorded in the admin database only; the live site does not show it. */
+  | { state: 'draft' };
+
+/**
+ * Draft vs published for one version. Nothing links versions to releases
+ * yet, so every version after the imported baseline is a draft.
+ */
+export function versionPublication(entry: Pick<VersionEntry, 'changeKind' | 'releaseId'>, inPublishedSnapshot: boolean): VersionPublication {
+  if (entry.releaseId !== null) return { state: 'published', releaseId: entry.releaseId };
+  if (entry.changeKind === 'insert' && inPublishedSnapshot) return { state: 'baseline' };
+  return { state: 'draft' };
 }
 
 // ---------------------------------------------------------------------------
@@ -198,6 +220,41 @@ export const hasSnapshotBlockers = (blockers: ArchiveBlockers): boolean =>
 
 export const hasDatabaseBlockers = (blockers: ArchiveBlockers): boolean =>
   blockers.formulas.length > 0 || blockers.documentReferences.length > 0 || blockers.linkedPhrases.length > 0;
+
+// ---------------------------------------------------------------------------
+// Usage (Phase 5B): where a metric appears, read from the archive blockers
+// ---------------------------------------------------------------------------
+
+export interface UsageDocument {
+  documentType: string;
+  slug: string;
+  /** Where in the document; only known for uses the database records. */
+  fieldPath: string | null;
+  source: 'database' | 'published_snapshot';
+}
+
+export interface MetricUsage {
+  caseStudies: UsageDocument[];
+  otherDocuments: UsageDocument[];
+  linkedPhrases: { location: string; phrase: string; source: 'database' | 'published_snapshot' }[];
+  formulas: string[];
+}
+
+export function metricUsage(blockers: ArchiveBlockers): MetricUsage {
+  const documents: UsageDocument[] = [
+    ...blockers.documentReferences.map((ref) => ({ ...ref, source: 'database' as const })),
+    ...blockers.snapshotDocuments.map((ref) => ({ ...ref, fieldPath: null, source: 'published_snapshot' as const })),
+  ];
+  return {
+    caseStudies: documents.filter((ref) => ref.documentType === 'case_study'),
+    otherDocuments: documents.filter((ref) => ref.documentType !== 'case_study'),
+    linkedPhrases: [
+      ...blockers.linkedPhrases.map((phrase) => ({ ...phrase, source: 'database' as const })),
+      ...blockers.snapshotLinkedPhrases.map((phrase) => ({ ...phrase, source: 'published_snapshot' as const })),
+    ],
+    formulas: blockers.formulas,
+  };
+}
 
 export function archiveBlockerMessages(blockers: ArchiveBlockers): string[] {
   return [

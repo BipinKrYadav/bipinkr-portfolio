@@ -1,5 +1,6 @@
+import { StatusBadge } from '@admin/components/ui/StatusBadge';
 import { formatDateTime } from '@admin/lib/format-date';
-import type { VersionChange, VersionEntry } from '@admin/lib/metrics/changes';
+import { versionPublication, type VersionChange, type VersionEntry, type VersionPublication } from '@admin/lib/metrics/changes';
 import { describeFormula } from '@admin/lib/metrics/formula';
 import { evidenceStatusLabels, humanise, kindLabels, precisionLabels, type EvidenceStatus, type MetricKind, type MetricRow, type ValuePrecision } from '@admin/lib/metrics/model';
 import { displayValue } from '@admin/lib/metrics/values';
@@ -39,14 +40,23 @@ function show(field: VersionChange['field'], value: unknown, metric: MetricRow):
   }
 }
 
+function PublicationLabel({ publication }: { publication: VersionPublication }) {
+  if (publication.state === 'published') return <StatusBadge tone="accent">Published · release {publication.releaseId}</StatusBadge>;
+  if (publication.state === 'baseline') return <StatusBadge tone="accent">Published baseline</StatusBadge>;
+  return <StatusBadge tone="warning">Draft — not published</StatusBadge>;
+}
+
 /** Read-only history from public.metric_versions (append-only in the database). */
 export function VersionHistory({
   metric,
   versions,
+  inPublishedSnapshot,
   actorLabel,
 }: {
   metric: MetricRow;
   versions: readonly VersionEntry[];
+  /** Whether the published snapshot contains this metric (its first version is then the imported baseline). */
+  inPublishedSnapshot: boolean;
   actorLabel: (userId: string | null) => string;
 }) {
   if (versions.length === 0) {
@@ -64,6 +74,7 @@ export function VersionHistory({
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span className="font-mono text-xs text-ink-faint">v{entry.number}</span>
             <span className="font-semibold text-ink">{changeKindLabels[entry.changeKind]}</span>
+            <PublicationLabel publication={versionPublication(entry, inPublishedSnapshot)} />
             <span className="text-xs text-ink-soft">
               {formatDateTime(entry.changedAt)} · {actorLabel(entry.changedBy)}
             </span>
