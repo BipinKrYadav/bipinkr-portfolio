@@ -24,8 +24,13 @@ Thumbs.db
 #
 # Claude Code's per-machine configuration (dev-server launch config and
 # similar). Useful locally, but it describes one developer's environment
-# rather than the project, so it stays out of version control.
-.claude/
+# rather than the project, so it stays out of version control. Shared
+# skills, agents and hooks are the exception: they are project tooling.
+.claude/*
+!.claude/skills/
+!.claude/agents/
+!.claude/hooks/
+!.claude/settings.json
 
 # debug
 npm-debug.log*
