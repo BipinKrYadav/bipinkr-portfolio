@@ -15,6 +15,11 @@ next-env.d.ts
 /admin/.next/
 /admin/out/
 
+# release builds (npm run release:build) and downloaded release snapshots:
+# deployment artifacts, uploaded by hand, never committed
+/release-builds/
+release-*.snapshot.json
+
 # misc
 .DS_Store
 *.pem

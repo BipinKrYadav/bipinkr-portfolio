@@ -132,6 +132,30 @@ export function buildPublishedBaseline(snapshot: { metrics: readonly SnapshotMet
   return index;
 }
 
+/**
+ * The editable fields of a published metric, in database form: what "Reset to
+ * published" writes back. Locked fields (kind, value type, unit, currency,
+ * display format) cannot change, and the evidence status is a review action,
+ * so neither is part of it; admin-only notes are not published at all.
+ */
+export function publishedEditableFields(metric: SnapshotMetric) {
+  return {
+    name: metric.name,
+    description: metric.description,
+    value: metric.value ?? null,
+    precision: metric.precision,
+    formula: metric.formula ?? null,
+    data_origin: metric.dataOrigin,
+    source_platform: metric.sourcePlatform ?? null,
+    source_type: metric.sourceType,
+    legacy_method_note: metric.legacyMethodNote ?? null,
+    reporting_period_basis: metric.reportingPeriod.basis,
+    reporting_period_start: metric.reportingPeriod.start ?? null,
+    reporting_period_end: metric.reportingPeriod.end ?? null,
+    reporting_period_note: metric.reportingPeriod.description,
+  } as const;
+}
+
 export type PublishedState =
   /** The metric is not in the published snapshot: it has never been published. */
   | { state: 'not_published' }

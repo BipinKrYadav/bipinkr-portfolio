@@ -17,8 +17,9 @@ import { displayValue, resolveValues } from '@admin/lib/metrics/values';
 
 import { ArchivePanel } from './ArchivePanel';
 import { EvidencePanel } from './EvidencePanel';
-import { ActivityBadge, EvidenceStatusBadge, PublishedStateBadge, publishedStateLabels, VerificationBadge } from './MetricBadges';
+import { ActivityBadge, EvidenceStatusBadge, PublishedStateBadge, VerificationBadge } from './MetricBadges';
 import { MetricEditor } from './MetricEditor';
+import { MetricPublishedPanel } from './MetricPublishedPanel';
 import { MetricUsagePanel } from './MetricUsagePanel';
 import { useMetricsRepository } from './MetricsRepositoryProvider';
 import { ReviewPanel } from './ReviewPanel';
@@ -195,17 +196,16 @@ export function MetricDetailView() {
             </Surface>
           </Panel>
 
-          <Panel title="Draft vs published" description="Compared with the published snapshot the live site is built from.">
-            <Surface className="space-y-2 p-3 text-sm">
-              <PublishedStateBadge state={loaded.published} />
-              <p className="text-ink-soft">{publishedStateLabels[loaded.published.state].description}</p>
-              {loaded.published.state === 'differs' ? (
-                <p className="text-ink">
-                  <span className="text-ink-soft">Differs in: </span>
-                  {loaded.published.fields.map(humanise).join(', ')}
-                </p>
-              ) : null}
-            </Surface>
+          <Panel title="Draft vs published" description="Compared with the published release the live site is built from.">
+            <MetricPublishedPanel
+              detail={loaded}
+              blockedReason={dirty ? 'Save or discard your edits before resetting.' : null}
+              onReset={(summary) =>
+                mutate('Draft reset to the published values as a new version. It is not published.', () =>
+                  repo.resetToPublished(loaded, summary),
+                )
+              }
+            />
           </Panel>
 
           <Panel title="Where it is used" description="Documents, linked phrases and formulas that reference this metric. Editing keeps every reference.">
