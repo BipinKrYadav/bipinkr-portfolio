@@ -65,3 +65,5 @@ yarn-error.log*
 *.xlsx
 *.xls
 *.csv
+
+docs/seo-master-map.md
