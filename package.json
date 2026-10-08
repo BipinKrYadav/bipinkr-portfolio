@@ -16,6 +16,7 @@
     "db:import-references": "node --import ./scripts/snapshot/register.mjs scripts/db/import-references.mjs",
     "db:import-release-baseline": "node --import ./scripts/snapshot/register.mjs scripts/db/import-release-baseline.mjs",
     "release:build": "node --import ./scripts/snapshot/register.mjs scripts/release/build-release.mjs",
+"release:check-output": "node scripts/release/check-output.mjs",
     "release:verify-live": "node scripts/release/verify-live.mjs",
     "admin:dev": "next dev admin --port 3100",
     "admin:build": "next build admin",
